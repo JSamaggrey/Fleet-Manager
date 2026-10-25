@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { expectWorkspaceNameReadable } from './helpers';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -41,6 +42,7 @@ test('the setup screen and every main page pass automated WCAG 2.1 AA checks', a
 
   await page.getByRole('button', { name: 'Open demo workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expectWorkspaceNameReadable(page);
 
   for (const [path, heading] of PAGES) {
     await page.goto(`/#${path}`);

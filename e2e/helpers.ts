@@ -26,6 +26,19 @@ export async function createWorkspace(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect(page.getByTestId('workspace-name')).toHaveText(name);
+  await expectWorkspaceNameReadable(page);
+}
+
+/**
+ * The active workspace must always be identifiable. Guards against the header status pills
+ * squeezing the name to nothing on narrow tablets.
+ */
+export async function expectWorkspaceNameReadable(page: Page): Promise<void> {
+  const name = page.getByTestId('workspace-name');
+  await expect(name).toBeVisible();
+  // Fully shown: no part of the name is cut off by truncation.
+  const clipped = await name.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(clipped, 'workspace name is truncated in the header').toBe(false);
 }
 
 /** Uses the sidebar on wide screens and the menu button on tablets/phones. */

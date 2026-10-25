@@ -14,6 +14,8 @@ export default defineConfig({
   projects: [
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'tablet-webkit', use: { ...devices['iPad (gen 7)'] } },
+    // Android tablet: Chromium with an Android user agent, touch and a mobile viewport (portrait).
+    { name: 'tablet-android', use: { ...devices['Galaxy Tab S9'] } },
   ],
   webServer: {
     command: 'pnpm build && pnpm preview --port 4173 --strictPort',

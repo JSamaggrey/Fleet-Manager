@@ -15,7 +15,7 @@ Work through this for every release. Record the version, date, and who checked i
 ## Automated checks (must all pass; record the actual numbers)
 
 - [ ] `pnpm check`: typecheck, lint (with layer rules), format, unit/component tests.
-- [ ] `pnpm test:e2e`: desktop Chromium and iPad-emulated WebKit, including offline start, offline
+- [ ] `pnpm test:e2e`: desktop Chromium, iPad-emulated WebKit and Android-tablet-emulated Chromium, including offline start, offline
       work, backup → erase → restore round trips, damaged-backup rejection, reports, CSV and
       the axe WCAG 2.1 AA scan.
 - [ ] `pnpm build` has no errors; note the main chunk size.

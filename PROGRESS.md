@@ -15,7 +15,7 @@ gotchas** that aren't obvious from the code. Keep it current at the end of each 
 | 5 Tasks, accessibility, release docs (real-device QA still manual)         | Done  | see `git log --grep "Phase 5:"` |
 
 Last verified (Phase 5, app v0.5.0): `pnpm check` green (274 unit/component tests).
-`pnpm test:e2e` 22/22 on desktop-chromium and tablet-webkit, including the axe WCAG 2.1 AA scan
+`pnpm test:e2e` 33/33 on desktop-chromium, tablet-webkit (iPad) and tablet-android (Galaxy Tab S9), including the axe WCAG 2.1 AA scan
 of every page. Main JS chunk is about 491 KB (157 KB gzipped).
 
 **What's next:** run `docs/device-qa.md` on a real iPad and Windows PC; decide hosting

@@ -131,7 +131,8 @@ export function AppShell({ workspace }: { workspace: Workspace }) {
             )}
             <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span>
           </button>
-          <div className="min-w-0 flex-1">
+          {/* A minimum width makes the status pills wrap below instead of hiding the workspace name. */}
+          <div className="min-w-[14rem] flex-1">
             <p className="text-xs tracking-wide text-blue-100 uppercase">
               Local workspace on this device
             </p>

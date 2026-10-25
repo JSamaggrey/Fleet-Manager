@@ -31,12 +31,13 @@ browser storage. Only backups you download leave the device.
 
 ## Install on each device
 
-1. Open the app's address in **Chrome or Edge** (Windows) or **Safari** (iPad) while online.
+1. Open the app's address in **Chrome or Edge** (Windows), **Safari** (iPad) or **Chrome** (Android) while online.
 2. Wait until the header shows **Available offline**.
 3. Install it:
    - Windows: the install icon in the address bar (or menu → _Install app_).
    - iPad: Share → **Add to Home Screen**. Open it from the home-screen icon from then on. On
      iPad, Safari tabs and the home-screen app have **separate storage**.
+   - Android: Chrome menu → **Install app** (or _Add to Home screen_).
 4. On the Backup & Restore page, choose **Ask the browser to keep data**.
 5. Create the workspace, or restore a backup (see [backup-and-restore.md](backup-and-restore.md)).
 

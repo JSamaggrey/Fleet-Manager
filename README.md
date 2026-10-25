@@ -41,16 +41,16 @@ pnpm dev                                       # http://localhost:5173
 
 ## Scripts
 
-| Command                             | Purpose                                                                 |
-| ----------------------------------- | ----------------------------------------------------------------------- |
-| `pnpm dev`                          | Development server                                                      |
-| `pnpm build` / `pnpm preview`       | Production build and local preview (port 4173)                          |
-| `pnpm typecheck`                    | TypeScript strict type check                                            |
-| `pnpm lint`                         | ESLint, including architecture-boundary rules                           |
-| `pnpm format` / `pnpm format:check` | Prettier                                                                |
-| `pnpm test`                         | Unit and component tests (Vitest + Testing Library)                     |
-| `pnpm test:e2e`                     | Playwright against the production build (desktop Chromium, iPad WebKit) |
-| `pnpm check`                        | typecheck + lint + format check + unit tests                            |
+| Command                             | Purpose                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `pnpm dev`                          | Development server                                                                               |
+| `pnpm build` / `pnpm preview`       | Production build and local preview (port 4173)                                                   |
+| `pnpm typecheck`                    | TypeScript strict type check                                                                     |
+| `pnpm lint`                         | ESLint, including architecture-boundary rules                                                    |
+| `pnpm format` / `pnpm format:check` | Prettier                                                                                         |
+| `pnpm test`                         | Unit and component tests (Vitest + Testing Library)                                              |
+| `pnpm test:e2e`                     | Playwright against the production build (desktop Chromium, iPad WebKit, Android tablet Chromium) |
+| `pnpm check`                        | typecheck + lint + format check + unit tests                                                     |
 
 ## Documentation
 
