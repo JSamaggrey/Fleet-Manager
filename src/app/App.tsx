@@ -5,10 +5,15 @@ import type { Workspace } from '@/domain/workspace';
 import { PageHeader } from '@/ui/components/Card';
 import { ErrorState, LoadingState } from '@/ui/components/StateViews';
 import { AppShell } from '@/ui/layout/AppShell';
+import { AssetDetailPage } from '@/ui/pages/AssetDetailPage';
+import { EditAssetPage, NewAssetPage } from '@/ui/pages/AssetFormPage';
+import { AssetsPage } from '@/ui/pages/AssetsPage';
 import { AuditPage } from '@/ui/pages/AuditPage';
 import { BackupRestorePage } from '@/ui/pages/BackupRestorePage';
 import { DashboardPage } from '@/ui/pages/DashboardPage';
+import { DepreciationPage } from '@/ui/pages/DepreciationPage';
 import { OnboardingPage } from '@/ui/pages/OnboardingPage';
+import { ReviseDepreciationPage } from '@/ui/pages/ReviseDepreciationPage';
 import { SettingsPage } from '@/ui/pages/SettingsPage';
 import { createQueryClient, useWorkspace } from '@/ui/queries';
 import { ServicesContext, type AppServices } from '@/ui/services';
@@ -29,6 +34,12 @@ function WorkspaceRoutes({ workspace }: { workspace: Workspace }) {
     <Routes>
       <Route element={<AppShell workspace={workspace} />}>
         <Route index element={<DashboardPage workspace={workspace} />} />
+        <Route path="assets" element={<AssetsPage />} />
+        <Route path="assets/new" element={<NewAssetPage />} />
+        <Route path="assets/:id" element={<AssetDetailPage workspace={workspace} />} />
+        <Route path="assets/:id/edit" element={<EditAssetPage />} />
+        <Route path="assets/:id/revise" element={<ReviseDepreciationPage />} />
+        <Route path="depreciation" element={<DepreciationPage workspace={workspace} />} />
         <Route path="backup" element={<BackupRestorePage workspace={workspace} />} />
         <Route path="settings" element={<SettingsPage workspace={workspace} />} />
         <Route path="audit" element={<AuditPage workspace={workspace} />} />

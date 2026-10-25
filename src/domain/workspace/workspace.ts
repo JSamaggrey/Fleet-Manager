@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { idSchema, isoTimestampSchema, isValidTimeZone } from '../common/schemas';
 import { REPORTING_CURRENCY } from '../money';
+import { yearMonthSchema } from '../periods';
 
 export const WORKSPACE_NAME_MAX_LENGTH = 80;
 
@@ -33,6 +34,8 @@ export const workspaceSchema = z.strictObject({
   updatedAt: isoTimestampSchema,
   /** When this device last produced a full backup file (or the restored backup's export time). */
   lastBackupAt: isoTimestampSchema.nullable(),
+  /** Depreciation lines up to and including this month are closed and never rewritten. */
+  depreciationClosedThrough: yearMonthSchema.nullable(),
 });
 
 export type Workspace = z.infer<typeof workspaceSchema>;
@@ -64,6 +67,7 @@ export function newWorkspace(input: {
     createdAt: timestamp,
     updatedAt: timestamp,
     lastBackupAt: null,
+    depreciationClosedThrough: null,
   });
 }
 

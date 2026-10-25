@@ -149,7 +149,7 @@ describe('backup inspection rejects bad files without touching the workspace', (
 
   it('rejects data from a newer schema version', async () => {
     const { file, target } = await setup();
-    const text = file.contents.replace('"schemaVersion": 1', '"schemaVersion": 99');
+    const text = file.contents.replace(/"schemaVersion": \d+/, '"schemaVersion": 99');
     expectProblem(await target.backup.inspectText(text), 'newer-schema');
   });
 

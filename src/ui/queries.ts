@@ -1,5 +1,12 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  AssetDetailsInput,
+  AssetInput,
+  DepreciationAssumptionsInput,
+} from '@/application/asset-records';
+import type { CategoryInput } from '@/application/asset-service';
 import type { WorkspaceUpdate } from '@/application/workspace-service';
+import type { AssetStatus } from '@/domain/assets';
 import type { ValidatedBackup } from '@/backup/backup-service';
 import type { PageRequest } from '@/repositories';
 import { useServices } from './services';
@@ -101,5 +108,109 @@ export function useEraseWorkspace() {
   return useMutation({
     mutationFn: (confirmationName: string) => workspace.eraseWorkspace(confirmationName),
     onSuccess: reset,
+  });
+}
+
+// ---- Assets and depreciation ------------------------------------------------------------------
+
+export const assetKeys = {
+  all: ['assets'] as const,
+  detail: (id: string) => ['assets', id] as const,
+  categories: ['categories'] as const,
+  period: (period: string) => ['depreciation', period] as const,
+};
+
+export function useAssets() {
+  const { assets } = useServices();
+  return useQuery({ queryKey: assetKeys.all, queryFn: () => assets.listAssets() });
+}
+
+export function useAsset(id: string) {
+  const { assets } = useServices();
+  return useQuery({ queryKey: assetKeys.detail(id), queryFn: () => assets.getAsset(id) });
+}
+
+export function useCategories() {
+  const { assets } = useServices();
+  return useQuery({ queryKey: assetKeys.categories, queryFn: () => assets.listCategories() });
+}
+
+export function usePeriodReport(period: string) {
+  const { depreciation } = useServices();
+  return useQuery({
+    queryKey: assetKeys.period(period),
+    queryFn: () => depreciation.periodReport(period),
+  });
+}
+
+export function useCreateAsset() {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: AssetInput) => assets.createAsset(input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateAssetDetails(id: string) {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (details: AssetDetailsInput) => assets.updateAssetDetails(id, details),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetAssetStatus(id: string) {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (status: AssetStatus) => assets.setAssetStatus(id, status),
+    onSuccess: invalidate,
+  });
+}
+
+export function usePreviewRevision(id: string) {
+  const { assets } = useServices();
+  return useMutation({
+    mutationFn: (next: DepreciationAssumptionsInput) => assets.previewRevision(id, next),
+  });
+}
+
+export function useReviseDepreciation(id: string) {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: { next: DepreciationAssumptionsInput; reason: string }) =>
+      assets.reviseDepreciation(id, input.next, input.reason),
+    onSuccess: invalidate,
+  });
+}
+
+export function useClosePeriods() {
+  const { depreciation } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (through: string) => depreciation.closePeriods(through),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCreateCategory() {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: CategoryInput) => assets.createCategory(input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateCategory() {
+  const { assets } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: { id: string } & CategoryInput & { archived: boolean }) =>
+      assets.updateCategory(input.id, input),
+    onSuccess: invalidate,
   });
 }

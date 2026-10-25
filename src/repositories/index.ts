@@ -1,4 +1,7 @@
+import type { Asset, AssetCategory } from '@/domain/assets';
 import type { AuditEvent } from '@/domain/audit';
+import type { DepreciationLine, DepreciationSchedule } from '@/domain/depreciation';
+import type { YearMonth } from '@/domain/periods';
 import type { Workspace } from '@/domain/workspace';
 
 /**
@@ -24,23 +27,74 @@ export interface AuditRepository {
   append(event: NewAuditEvent): Promise<AuditEvent>;
   /** Newest first. */
   list(page: PageRequest): Promise<AuditEvent[]>;
+  /** Newest first. */
+  listForEntity(entityType: string, entityId: string): Promise<AuditEvent[]>;
   count(): Promise<number>;
+}
+
+export interface AssetCategoryRepository {
+  list(): Promise<AssetCategory[]>;
+  get(id: string): Promise<AssetCategory | undefined>;
+  put(category: AssetCategory): Promise<void>;
+}
+
+export interface AssetRepository {
+  list(): Promise<Asset[]>;
+  get(id: string): Promise<Asset | undefined>;
+  put(asset: Asset): Promise<void>;
+}
+
+export interface DepreciationRepository {
+  /** All versions for an asset, oldest first. */
+  listSchedules(assetId: string): Promise<DepreciationSchedule[]>;
+  listAllSchedules(): Promise<DepreciationSchedule[]>;
+  addSchedule(schedule: DepreciationSchedule): Promise<void>;
+  /** Lines of every version for an asset, ordered by period. */
+  listLines(assetId: string): Promise<DepreciationLine[]>;
+  /** Lines of every version for every asset in one month. */
+  listLinesForPeriod(period: YearMonth): Promise<DepreciationLine[]>;
+  addLines(lines: readonly DepreciationLine[]): Promise<void>;
 }
 
 export interface Repositories {
   workspace: WorkspaceRepository;
   audit: AuditRepository;
+  categories: AssetCategoryRepository;
+  assets: AssetRepository;
+  depreciation: DepreciationRepository;
 }
 
 /** Every persisted table. Adding an entity means adding it here, which the backup format follows. */
 export interface WorkspaceTables {
   workspace: Workspace[];
   auditEvents: AuditEvent[];
+  assetCategories: AssetCategory[];
+  assets: Asset[];
+  depreciationSchedules: DepreciationSchedule[];
+  depreciationLines: DepreciationLine[];
 }
 
 export type TableName = keyof WorkspaceTables;
 
-export const TABLE_NAMES = ['workspace', 'auditEvents'] as const satisfies readonly TableName[];
+export const TABLE_NAMES = [
+  'workspace',
+  'auditEvents',
+  'assetCategories',
+  'assets',
+  'depreciationSchedules',
+  'depreciationLines',
+] as const satisfies readonly TableName[];
+
+export function emptyTables(): WorkspaceTables {
+  return {
+    workspace: [],
+    auditEvents: [],
+    assetCategories: [],
+    assets: [],
+    depreciationSchedules: [],
+    depreciationLines: [],
+  };
+}
 
 export interface WorkspaceSnapshot {
   schemaVersion: number;

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { workspaceNameSchema, workspaceSettingsSchema, type Workspace } from '@/domain/workspace';
+import { CategoriesCard } from '../assets/CategoriesCard';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { Card, PageHeader } from '../components/Card';
@@ -139,6 +140,9 @@ export function SettingsPage({ workspace }: { workspace: Workspace }) {
           </Button>
         </form>
       </Card>
+      <div className="mt-6">
+        <CategoriesCard />
+      </div>
     </>
   );
 }

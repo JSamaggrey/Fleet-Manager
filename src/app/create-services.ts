@@ -1,3 +1,5 @@
+import { createAssetService } from '@/application/asset-service';
+import { createDepreciationService } from '@/application/depreciation-service';
 import { createWorkspaceService } from '@/application/workspace-service';
 import { createBackupService } from '@/backup/backup-service';
 import { LOCAL_ACTOR } from '@/domain/audit';
@@ -19,6 +21,8 @@ export function createServices(
   const deps = { store, newId, now, actor: LOCAL_ACTOR };
   return {
     workspace: createWorkspaceService(deps),
+    assets: createAssetService(deps),
+    depreciation: createDepreciationService(deps),
     backup: createBackupService({ ...deps, app: { name: APP_NAME, version: __APP_VERSION__ } }),
     saveFile: overrides.saveFile ?? downloadBackupFile,
     now,

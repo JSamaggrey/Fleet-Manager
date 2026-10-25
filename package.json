@@ -1,7 +1,7 @@
 {
   "name": "fms",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Offline-first fleet and asset management (management reporting, GHS).",
   "type": "module",
   "packageManager": "pnpm@12.15.0",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@hookform/resolvers": "6.0.0",
     "@tanstack/react-query": "5.104.5",
+    "@tanstack/react-table": "9.3.1",
     "big.js": "7.0.1",
     "dexie": "4.4.7",
     "lucide-react": "1.61.0",

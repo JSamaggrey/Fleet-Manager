@@ -1,91 +1,153 @@
+import type { Table, Transaction } from 'dexie';
+import type { Asset, AssetCategory } from '@/domain/assets';
+import type { AuditEvent } from '@/domain/audit';
+import type { DepreciationLine, DepreciationSchedule } from '@/domain/depreciation';
+import type { Workspace } from '@/domain/workspace';
 import {
   TABLE_NAMES,
   WorkspaceNotEmptyError,
   type Repositories,
+  type TableName,
   type WorkspaceSnapshot,
   type WorkspaceStore,
+  type WorkspaceTables,
 } from '@/repositories';
 import { DB_SCHEMA_VERSION, type FmsDatabase } from './fms-database';
+
+const byPeriod = <T extends { period: string }>(rows: T[]) =>
+  rows.sort((a, b) => a.period.localeCompare(b.period));
+
+/**
+ * Repositories bound explicitly to one transaction via `tx.table()`.
+ *
+ * Dexie can also find the "current" transaction implicitly through promise zones, but that
+ * tracking is lost across deep chains of native async calls (service → helper → repository).
+ * An operation that escapes the transaction lets IndexedDB auto-commit early
+ * ("Transaction committed too early"). Binding every call to `tx` avoids relying on zones.
+ */
+function repositoriesFor(tx: Transaction): Repositories {
+  const workspace = tx.table<Workspace, string>('workspace');
+  const auditEvents = tx.table<AuditEvent, string>('auditEvents');
+  const assetCategories = tx.table<AssetCategory, string>('assetCategories');
+  const assets = tx.table<Asset, string>('assets');
+  const schedules = tx.table<DepreciationSchedule, string>('depreciationSchedules');
+  const lines = tx.table<DepreciationLine, string>('depreciationLines');
+
+  return {
+    workspace: {
+      get: () => workspace.toCollection().first(),
+      put: async (record) => {
+        await workspace.put(record);
+      },
+    },
+    audit: {
+      append: async (event) => {
+        const last = await auditEvents.orderBy('sequence').last();
+        const stored = { ...event, sequence: (last?.sequence ?? 0) + 1 };
+        await auditEvents.add(stored);
+        return stored;
+      },
+      list: ({ offset, limit }) =>
+        auditEvents.orderBy('sequence').reverse().offset(offset).limit(limit).toArray(),
+      listForEntity: async (entityType, entityId) =>
+        (await auditEvents.where({ entityType, entityId }).toArray()).sort(
+          (a, b) => b.sequence - a.sequence,
+        ),
+      count: () => auditEvents.count(),
+    },
+    categories: {
+      list: () => assetCategories.toArray(),
+      get: (id) => assetCategories.get(id),
+      put: async (category) => {
+        await assetCategories.put(category);
+      },
+    },
+    assets: {
+      list: () => assets.toArray(),
+      get: (id) => assets.get(id),
+      put: async (asset) => {
+        await assets.put(asset);
+      },
+    },
+    depreciation: {
+      listSchedules: async (assetId) =>
+        (await schedules.where({ assetId }).toArray()).sort((a, b) => a.version - b.version),
+      listAllSchedules: () => schedules.toArray(),
+      addSchedule: async (schedule) => {
+        await schedules.add(schedule);
+      },
+      listLines: async (assetId) => byPeriod(await lines.where({ assetId }).toArray()),
+      listLinesForPeriod: (period) => lines.where({ period }).toArray(),
+      addLines: async (rows) => {
+        await lines.bulkAdd([...rows]);
+      },
+    },
+  };
+}
 
 export class DexieWorkspaceStore implements WorkspaceStore {
   readonly schemaVersion = DB_SCHEMA_VERSION;
   readonly #db: FmsDatabase;
-  readonly #repos: Repositories;
 
   constructor(db: FmsDatabase) {
     this.#db = db;
-    this.#repos = {
-      workspace: {
-        get: () => db.workspace.toCollection().first(),
-        put: async (workspace) => {
-          await db.workspace.put(workspace);
-        },
-      },
-      audit: {
-        append: async (event) => {
-          const last = await db.auditEvents.orderBy('sequence').last();
-          const stored = { ...event, sequence: (last?.sequence ?? 0) + 1 };
-          await db.auditEvents.add(stored);
-          return stored;
-        },
-        list: ({ offset, limit }) =>
-          db.auditEvents.orderBy('sequence').reverse().offset(offset).limit(limit).toArray(),
-        count: () => db.auditEvents.count(),
-      },
-    };
   }
 
-  #tables() {
+  #tables(): Table[] {
     return TABLE_NAMES.map((name) => this.#db.table(name));
   }
 
   read<T>(work: (repos: Repositories) => Promise<T>): Promise<T> {
-    return this.#db.transaction('r', this.#tables(), () => work(this.#repos));
+    return this.#db.transaction('r', this.#tables(), (tx) => work(repositoriesFor(tx)));
   }
 
   write<T>(work: (repos: Repositories) => Promise<T>): Promise<T> {
-    return this.#db.transaction('rw', this.#tables(), () => work(this.#repos));
+    return this.#db.transaction('rw', this.#tables(), (tx) => work(repositoriesFor(tx)));
   }
 
   snapshot(): Promise<WorkspaceSnapshot> {
-    return this.#db.transaction('r', this.#tables(), async () => ({
-      schemaVersion: this.schemaVersion,
-      tables: {
-        workspace: await this.#db.workspace.toArray(),
-        auditEvents: await this.#db.auditEvents.orderBy('sequence').toArray(),
-      },
-    }));
+    return this.#db.transaction('r', this.#tables(), async (tx) => {
+      const tables = {} as Record<TableName, unknown[]>;
+      for (const name of TABLE_NAMES) {
+        tables[name] =
+          name === 'auditEvents'
+            ? await tx.table('auditEvents').orderBy('sequence').toArray()
+            : await tx.table(name).toArray();
+      }
+      return { schemaVersion: this.schemaVersion, tables: tables as unknown as WorkspaceTables };
+    });
   }
 
   restore(snapshot: WorkspaceSnapshot): Promise<void> {
-    return this.#db.transaction('rw', this.#tables(), async () => {
-      if (!(await this.#isEmptyInTransaction())) {
+    return this.#db.transaction('rw', this.#tables(), async (tx) => {
+      if (!(await isEmptyIn(tx))) {
         throw new WorkspaceNotEmptyError();
       }
       // bulkAdd (not bulkPut) so a duplicate key aborts the whole transaction.
-      await this.#db.workspace.bulkAdd(snapshot.tables.workspace);
-      await this.#db.auditEvents.bulkAdd(snapshot.tables.auditEvents);
+      for (const name of TABLE_NAMES) {
+        await tx.table(name).bulkAdd(snapshot.tables[name]);
+      }
     });
   }
 
   isEmpty(): Promise<boolean> {
-    return this.#db.transaction('r', this.#tables(), () => this.#isEmptyInTransaction());
+    return this.#db.transaction('r', this.#tables(), (tx) => isEmptyIn(tx));
   }
 
   erase(): Promise<void> {
-    return this.#db.transaction('rw', this.#tables(), async () => {
-      for (const table of this.#tables()) {
-        await table.clear();
+    return this.#db.transaction('rw', this.#tables(), async (tx) => {
+      for (const name of TABLE_NAMES) {
+        await tx.table(name).clear();
       }
     });
   }
+}
 
-  async #isEmptyInTransaction(): Promise<boolean> {
-    for (const table of this.#tables()) {
-      if ((await table.count()) > 0) {
-        return false;
-      }
+async function isEmptyIn(tx: Transaction): Promise<boolean> {
+  for (const name of TABLE_NAMES) {
+    if ((await tx.table(name).count()) > 0) {
+      return false;
     }
-    return true;
   }
+  return true;
 }

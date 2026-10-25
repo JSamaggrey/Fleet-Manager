@@ -34,6 +34,26 @@ Folders are created when first used. All layers exist as of Phase 1.
   writes, rollback, atomic restore-into-empty-only, erase, and copy semantics. A future SQLite or
   API adapter must pass it too.
 
+### IndexedDB transactions (important)
+
+`DexieWorkspaceStore` binds every repository call to the transaction object (`tx.table(...)`) and
+does **not** rely on Dexie's implicit "current transaction" zones. Those zones get lost across deep
+native `async` call chains (service → helper → repository). An operation that escapes the
+transaction makes IndexedDB auto-commit early ("Transaction committed too early"). This only shows
+up in real browsers, not in fake-indexeddb, which is why the Playwright suite covers multi-step
+writes such as demo seeding. Inside `store.write()`, still await only repository calls: never
+`fetch`, timers, or `crypto.subtle`.
+
+### Depreciation model
+
+- `assets.depreciation` holds the current assumptions. Each change creates a new
+  `depreciationSchedules` version, and its generated `depreciationLines` are stored, never
+  recomputed.
+- The lines in force for a month come from the latest version whose `effectiveFrom` ≤ that month
+  (`effectiveLines` in the domain). Superseded projections stay stored for history.
+- `workspace.depreciationClosedThrough` marks closed months. Revisions start at the first open
+  month (`planRevision`).
+
 ### UI data flow
 
 TanStack Query wraps the application services with `networkMode: 'always'`, so local reads and

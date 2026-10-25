@@ -1,3 +1,4 @@
+import { defaultAssetCategories } from '@/domain/assets';
 import { diffFields, type AuditChange, type AuditEvent } from '@/domain/audit';
 import {
   DEMO_WORKSPACE_NAME,
@@ -9,6 +10,7 @@ import {
   type WorkspaceSettings,
 } from '@/domain/workspace';
 import type { NewAuditEvent, PageRequest, Repositories } from '@/repositories';
+import { seedDemoAssets } from './demo-seed';
 import type { ServiceDependencies } from './dependencies';
 import { ConfirmationMismatchError, NoWorkspaceError, WorkspaceAlreadyExistsError } from './errors';
 
@@ -65,6 +67,11 @@ export function createWorkspaceService(deps: ServiceDependencies) {
           kind === 'demo' ? 'Demo workspace created' : 'Workspace created',
         ),
       );
+      const categories = defaultAssetCategories(workspace.id, at, newId);
+      for (const category of categories) await repos.categories.put(category);
+      if (kind === 'demo') {
+        await seedDemoAssets(repos, { newId, actor, at }, workspace, categories);
+      }
       return workspace;
     });
   }
@@ -78,7 +85,7 @@ export function createWorkspaceService(deps: ServiceDependencies) {
       return create(name, 'business');
     },
 
-    /** Demo data grows as features land; for now it is a clearly labelled demo workspace. */
+    /** A clearly labelled demo workspace with fictional sample assets. */
     createDemoWorkspace(): Promise<Workspace> {
       return create(DEMO_WORKSPACE_NAME, 'demo');
     },

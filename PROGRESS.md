@@ -5,17 +5,18 @@ gotchas** that aren't obvious from the code. Keep it current at the end of each 
 
 ## Status
 
-| Phase                                                                      | State    | Commit    |
-| -------------------------------------------------------------------------- | -------- | --------- |
-| 0 Scaffold, architecture decision, money domain                            | Done     | `54cf965` |
-| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done     | `1bdc92c` |
-| 2 Assets + depreciation schedule                                           | **Next** | —         |
-| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Pending  | —         |
-| 4 Reports, dashboard, period filters, CSV export, exceptions               | Pending  | —         |
-| 5 Tasks, accessibility/tablet QA, release docs                             | Pending  | —         |
+| Phase                                                                      | State    | Commit                          |
+| -------------------------------------------------------------------------- | -------- | ------------------------------- |
+| 0 Scaffold, architecture decision, money domain                            | Done     | `54cf965`                       |
+| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done     | `1bdc92c`                       |
+| 2 Assets, categories, depreciation schedules, revisions, period close      | Done     | see `git log --grep "Phase 2:"` |
+| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | **Next** | —                               |
+| 4 Reports, dashboard, period filters, CSV export, exceptions               | Pending  | —                               |
+| 5 Tasks, accessibility/tablet QA, release docs                             | Pending  | —                               |
 
-Last verified (Phase 1): `pnpm check` green (105 unit tests). `pnpm test:e2e` 10/10 on
-desktop-chromium and tablet-webkit, including the offline test and backup→erase→restore.
+Last verified (Phase 2, app v0.2.0): `pnpm check` green (192 unit/component tests).
+`pnpm test:e2e` 14/14 on desktop-chromium and tablet-webkit (offline start, offline asset
+creation, backup round trips with and without assets).
 
 ## Environment (Windows)
 
@@ -24,84 +25,95 @@ desktop-chromium and tablet-webkit, including the offline test and backup→eras
 - **Run pnpm via the PowerShell tool**, prefixing with
   `$env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User");`
   From Git Bash the shim path gets mangled.
-- Don't put backticks inside double-quoted `node -e` strings in Bash; bash executes them. Use the
-  Edit tool for edits.
-- The user's network is slow. Large downloads (Playwright browsers) need a background run.
+- **Never put backticks or `${}` inside Bash `node -e "…"` or unquoted heredocs**: bash executes
+  them and silently corrupts the code. Use the Edit/Write tools, or write a script file to the
+  scratchpad and run it.
+- The user's network is slow. Large downloads need a background run.
 - TypeScript is pinned to **6.0.3**, not 7: typescript-eslint 8.72 needs TS < 6.1.
+- TanStack Table is **v9** (`useTable`, `tableFeatures`, `createColumnHelper<typeof features, Row>()`,
+  `table.FlexRender`, `getPrePaginatedRowModel`). The package ships guides under
+  `node_modules/@tanstack/react-table/skills/`. Numeric columns sort descending on the first click.
+- To debug a real-browser-only failure: `vite build`, `vite preview --port 4173`, then a scratchpad
+  Playwright script importing `file:///…/node_modules/@playwright/test/index.mjs`. Kill the preview
+  node process afterwards.
 
 ## Architecture map (enforced by ESLint layer rules in `eslint.config.js`)
 
 ```
-src/domain/        pure rules + strict Zod schemas (money, workspace, audit). No React/Dexie/browser APIs.
-src/repositories/  interfaces: WorkspaceStore, Repositories, WorkspaceTables, TABLE_NAMES
-src/application/   use cases (workspace-service.ts); deps injected: store, newId, now, actor
-src/persistence/   dexie/ (FmsDatabase, DexieWorkspaceStore), memory/ (MemoryWorkspaceStore),
-                   workspace-store.contract.ts (shared adapter test suite)
-src/backup/        format.ts (envelope + data schemas), backup-service.ts (create/inspect/restore)
-src/ui/            components/, layout/, pages/, backup/, queries.ts (TanStack Query hooks),
-                   services.ts (ServicesContext), device-status.ts (online/storage/PWA status)
-src/app/           App.tsx (HashRouter + WorkspaceGate), create-services.ts (composition root), pwa.ts
-src/test/          fixtures.ts (sequentialIds, steppingClock, sampleWorkspace, sampleAuditEvent)
-e2e/               Playwright specs + helpers (waitForOfflineReady, createWorkspace, navigateTo)
+src/domain/        pure rules + strict Zod schemas: money, periods (YearMonth), workspace, audit,
+                   assets (+categories), depreciation (engine, revisions). No React/Dexie/browser APIs.
+src/repositories/  interfaces: WorkspaceStore, Repositories, WorkspaceTables, TABLE_NAMES, emptyTables
+src/application/   workspace-service, asset-service, depreciation-service, asset-records (shared
+                   helpers: validation, audit views, insertAssetWithSchedule), demo-seed
+src/persistence/   dexie/ (FmsDatabase v2 + migration, DexieWorkspaceStore), memory/,
+                   workspace-store.contract.ts (shared adapter suite), dexie/migrations.test.ts
+src/backup/        format.ts (envelope; frozen V1 + current V2 data schemas), backup-service.ts
+src/ui/            components/, layout/, pages/, assets/ (ScheduleTable, CategoriesCard,
+                   form-values), backup/, queries.ts, services.ts, device-status.ts, format.ts
+src/app/           App.tsx (routes), create-services.ts (composition root), pwa.ts
+src/test/          fixtures.ts (ids, clock, sample workspace/audit/category/asset/schedule)
+e2e/               smoke, offline, backup-restore, assets specs + helpers
 ```
 
 ## Decisions in force
 
 - **PWA + IndexedDB via Dexie** (ADR 0001). Hash routing, `base: './'`, SW `registerType: 'prompt'`.
-- **Money** (ADR 0002): `{ amountMinor: safe integer, currency: 'GHS' }`. big.js in strict mode
-  (string inputs only; `Decimal('10')`, never `Decimal(10)`). Default rounding is half-up.
-  `CurrencyCode` is GHS only.
-- **IDs**: `crypto.randomUUID()` is injected as `newId`. Timestamps are UTC ISO strings, displayed
-  in the workspace time zone.
-- **Audit**: append-only `auditEvents` with a monotonic `sequence`. Use `diffFields()` for
-  field-level changes. The actor is `LOCAL_ACTOR` ('local-user'); there are no profiles.
-- **One workspace per device.** Restore only into an empty store. Erase requires typing the exact
-  name.
-- **TanStack Query** with `networkMode: 'always'` and `retry: false`. Mutations call `invalidate()`;
-  workspace replace or erase calls `reset()`.
-- Defaults for open questions are in `docs/product-defaults.md`: service-date recognition, full
-  first month of depreciation, final period absorbs rounding, disposal blocked, Monday week start,
-  Africa/Accra.
+- **Dexie transactions:** repositories use `tx.table()` explicitly (see `docs/architecture.md`).
+  Never rely on implicit zones, and never await non-repository work inside `store.write()`.
+- **Money** (ADR 0002): `{ amountMinor, currency: 'GHS' }`, big.js strict (string inputs only).
+  Half-up rounding. Only GHS is representable.
+- **IDs**: injected `newId` (`crypto.randomUUID()`). UTC ISO timestamps, displayed in the workspace
+  time zone. "Current month" comes from `currentYearMonth(now, workspace.settings.timeZone)`.
+- **Audit**: append-only with a monotonic `sequence`. Money in audit changes is shown as
+  `"GHS 1234.56"` (`assumptionsAuditView`). The actor is `LOCAL_ACTOR`.
+- **Depreciation**:
+  - Straight-line, full first month, final month absorbs rounding.
+  - Every assumption change creates a new schedule version with stored lines. History is never
+    rewritten.
+  - Explicit period close (`workspace.depreciationClosedThrough`, irreversible, ended months only).
+  - Before any close a revision regenerates the whole schedule. After close it preserves closed
+    lines; cost and in-service date are locked, and life is total months from in-service.
+  - Archiving does not stop depreciation. Retire/dispose is disabled pending a policy.
+- **Assets**: code unique ignoring case; vehicle fields only for vehicle categories; no hard
+  delete; details edits are audited per field; assumptions change only via revision (preview + reason).
+- **Backups**: data schemaVersion 2. v1 files are upgraded in memory on import. Cross-table
+  integrity checks are listed in `docs/backup-format.md`.
+- Defaults for open questions: `docs/product-defaults.md` (rows 4d–4f were added in Phase 2).
 
-## Checklist: adding a new persisted entity (e.g. assets in Phase 2)
+## Checklist: adding a new persisted entity (Phase 3: revenue/expenses)
 
-1. Domain: strict Zod schema + type in `src/domain/<entity>/`. Include `workspaceId`, UUID `id`,
-   `createdAt`/`updatedAt`. Money uses the integer-minor-unit `Money` shape.
-2. `src/repositories/index.ts`: add a repository interface, add it to `Repositories`, add the
-   table to `WorkspaceTables` and `TABLE_NAMES`.
-3. Dexie: add a **new** `this.version(2).stores({...})` block (never edit version 1). Bump
-   `DB_SCHEMA_VERSION`. Update the snapshot/restore table handling in `dexie-workspace-store.ts`.
-4. Memory adapter: add the table to `emptyTables()` and the repos, plus uniqueness checks on
-   restore.
-5. Extend the contract suite for the new repository.
-6. Backup: add `backupDataSchemaV2` and accept schemaVersion 1 → upgrade to 2 (old backups must stay
-   restorable). Update the `unsupported-schema` check, add integrity checks (FK references,
-   workspaceId), and update `docs/backup-format.md`. Test restore of a v1 backup.
-7. Application service writes audit events inside the same `store.write()`. Only await repository
-   calls inside `write()` (a non-Dexie await ends the IndexedDB transaction).
-8. UI: query/mutation hooks in `ui/queries.ts`, page, nav item in `AppShell.tsx`, route in
-   `App.tsx`.
+1. Domain: strict Zod schema in `src/domain/<entity>/`, with `workspaceId`, UUID `id`, timestamps,
+   and `moneySchema` for amounts.
+2. `src/repositories/index.ts`: interface, add it to `Repositories`, `WorkspaceTables`,
+   `TABLE_NAMES`, and `emptyTables()`.
+3. Dexie: add a **new** `this.version(3)` block (export `SCHEMA_V3`), bump `DB_SCHEMA_VERSION`, and
+   bind the repository in `repositoriesFor(tx)`.
+4. Memory adapter: repository methods. Restore uniqueness checks are already generic.
+5. Extend the contract suite and the migration test (v2 → v3).
+6. Backup: freeze `backupDataSchemaV2`, add V3, add an upgrade step 2 → 3 (and 1 → 3 via 1 → 2),
+   extend `SUPPORTED_SCHEMA_VERSIONS` and `checkIntegrity`, update `docs/backup-format.md`, and test
+   restoring v1 and v2 files.
+7. Service writes and audit happen in one `store.write()`. Add a Playwright test for any multi-step
+   write; fake-indexeddb won't catch transaction problems.
+8. UI: hooks in `ui/queries.ts`, page, nav item in `AppShell.tsx`, route in `App.tsx`.
 
-## Phase 2 scope (from AGENT.md §5–6, CLAUDE.md)
+## Phase 3 scope (AGENT.md §7–9, CLAUDE.md)
 
-- Asset CRUD, archive, and retire states; never hard-delete assets with financial history. Asset
-  code must be unique per workspace. Categories are configurable (vehicle first), and vehicle
-  fields are optional for non-vehicles. Track material changes in the audit log.
-- Straight-line depreciation. Basis = cost − residual. Monthly lines show opening book value,
-  charge, accumulated depreciation, closing book value, and remaining life. The final period
-  absorbs rounding. Validate life > 0 and 0 ≤ residual ≤ cost, with coherent dates.
-- Revisions: preview a new schedule version and preserve closed periods. Historical figures are
-  never rewritten silently.
-- Acquisition cost is not an operating expense. Depreciation is non-cash.
-- Use TanStack Table for the asset list (search, sort, filter, pagination).
-- **Needs user confirmation:** the full-first-month convention, and the disposal policy (disposal
-  stays blocked until approved).
+- Trip/job revenue: service date, reference, asset (an explicit "unassigned" option, shown as an
+  exception), customer/contract label, description, optional origin/destination/distance/rate,
+  amount (GHS), status, notes.
+- Expenses: date, either a direct asset or shared/fleet classification, category,
+  vendor/reference, amount, payment status/method if needed. Capital items are not operating
+  expenses.
+- Void/reversal with a reason instead of deletion. Audit every material change.
+- Recognition default: service date / expense date (not cash). Label it in the UI.
+- Do not build dispatch, GPS, payroll, or payments.
 
 ## Open items / known limitations
 
-- How devices receive the app (fixed HTTPS hosting vs local install) is undecided; one online
-  load is required.
+- How devices receive the app (fixed HTTPS hosting vs local install) is undecided.
 - Not yet verified on a real iPad or Windows device (ADR 0001 proof table).
 - Backups are unencrypted. The checksum catches corruption, not authorship.
-- Single JS bundle of ~600 KB. Consider route-level code splitting later.
-- Open product questions 1–5 in CLAUDE.md are still unanswered; the defaults above apply.
+- JS bundle ~700 KB in one chunk. Consider route-level code splitting.
+- **Awaiting product confirmation:** recognition basis (3), full-first-month (4a), period-close
+  model (4d), disposal policy (4c, blocking retire/dispose), task categories (5).

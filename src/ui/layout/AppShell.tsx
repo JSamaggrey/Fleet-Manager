@@ -1,4 +1,13 @@
-import { DatabaseBackup, History, LayoutDashboard, Menu, Settings, X } from 'lucide-react';
+import {
+  Car,
+  DatabaseBackup,
+  History,
+  LayoutDashboard,
+  Menu,
+  Settings,
+  TrendingDown,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { backupStatus, type Workspace } from '@/domain/workspace';
@@ -10,6 +19,8 @@ import { StatusIndicators } from './StatusIndicators';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', Icon: LayoutDashboard, end: true },
+  { to: '/assets', label: 'Assets', Icon: Car, end: false },
+  { to: '/depreciation', label: 'Depreciation', Icon: TrendingDown, end: false },
   { to: '/backup', label: 'Backup & Restore', Icon: DatabaseBackup, end: false },
   { to: '/settings', label: 'Settings', Icon: Settings, end: false },
   { to: '/audit', label: 'Audit log', Icon: History, end: false },

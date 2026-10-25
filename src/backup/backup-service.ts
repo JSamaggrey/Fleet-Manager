@@ -1,3 +1,4 @@
+import { defaultAssetCategories, normalizeAssetCode } from '@/domain/assets';
 import { LOCAL_ACTOR, type AuditEvent } from '@/domain/audit';
 import type { WorkspaceKind } from '@/domain/workspace';
 import {
@@ -14,9 +15,12 @@ import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   MAX_BACKUP_BYTES,
+  SUPPORTED_SCHEMA_VERSIONS,
   backupDataSchemaV1,
+  backupDataSchemaV2,
   backupEnvelopeSchema,
   backupHeaderSchema,
+  type BackupDataV1,
   type BackupEnvelope,
 } from './format';
 
@@ -39,6 +43,8 @@ export interface BackupPreview {
   app: AppInfo;
   formatVersion: number;
   schemaVersion: number;
+  /** Set when an older data version was upgraded on import. */
+  upgradedFrom: number | null;
   counts: Record<TableName, number>;
   sizeBytes: number;
 }
@@ -167,7 +173,7 @@ export function createBackupService(deps: BackupServiceDependencies) {
           'This backup uses a newer data version than this app supports. Update the app first.',
         );
       }
-      if (header.data.schemaVersion !== 1) {
+      if (!(SUPPORTED_SCHEMA_VERSIONS as readonly number[]).includes(header.data.schemaVersion)) {
         return fail(
           'unsupported-schema',
           `Backup data version ${header.data.schemaVersion} is not supported.`,
@@ -192,17 +198,30 @@ export function createBackupService(deps: BackupServiceDependencies) {
         );
       }
 
-      const data = backupDataSchemaV1.safeParse(envelope.data.data);
+      const dataSchema =
+        envelope.data.schemaVersion === 1 ? backupDataSchemaV1 : backupDataSchemaV2;
+      const data = dataSchema.safeParse(envelope.data.data);
       if (!data.success) {
         return fail('invalid-data', 'The backup contains invalid records.', issues(data.error));
       }
 
-      const integrityProblems = checkIntegrity(envelope.data, data.data);
+      const countProblems = checkCounts(envelope.data, data.data);
+      if (countProblems.length > 0) {
+        return fail('integrity', 'The backup failed consistency checks.', countProblems);
+      }
+
+      // Older data versions are upgraded in memory; the file itself is never modified.
+      const tables =
+        envelope.data.schemaVersion === 1
+          ? upgradeV1ToV2(data.data as BackupDataV1, newId, envelope.data.exportedAt)
+          : (data.data as WorkspaceTables);
+
+      const integrityProblems = checkIntegrity(envelope.data, tables);
       if (integrityProblems.length > 0) {
         return fail('integrity', 'The backup failed consistency checks.', integrityProblems);
       }
 
-      const workspace = data.data.workspace[0];
+      const workspace = tables.workspace[0];
       if (!workspace) return fail('invalid-data', 'The backup has no workspace.');
       return {
         ok: true,
@@ -215,10 +234,14 @@ export function createBackupService(deps: BackupServiceDependencies) {
             app: envelope.data.app,
             formatVersion: envelope.data.formatVersion,
             schemaVersion: envelope.data.schemaVersion,
-            counts: countRows(data.data),
+            upgradedFrom:
+              envelope.data.schemaVersion < store.schemaVersion
+                ? envelope.data.schemaVersion
+                : null,
+            counts: countRows(tables),
             sizeBytes,
           },
-          snapshot: { schemaVersion: envelope.data.schemaVersion, tables: data.data },
+          snapshot: { schemaVersion: store.schemaVersion, tables },
         },
       };
     },
@@ -290,6 +313,46 @@ function issues(error: { issues: readonly { path: readonly PropertyKey[]; messag
     .map((issue) => `${issue.path.map(String).join('.') || '(root)'}: ${issue.message}`);
 }
 
+/** Header counts must match the records actually present for this data version. */
+function checkCounts(envelope: BackupEnvelope, data: Record<string, readonly unknown[]>): string[] {
+  const problems: string[] = [];
+  const names = new Set([...Object.keys(data), ...Object.keys(envelope.counts)]);
+  for (const name of names) {
+    const actual = data[name]?.length;
+    if (actual !== envelope.counts[name]) {
+      problems.push(
+        `Header count for ${name} (${envelope.counts[name] ?? 'missing'}) does not match ${actual ?? 'no'} records.`,
+      );
+    }
+  }
+  return problems;
+}
+
+/** Version 1 had no assets: add the period-close marker and the default categories. */
+function upgradeV1ToV2(
+  data: BackupDataV1,
+  newId: () => string,
+  exportedAt: string,
+): WorkspaceTables {
+  const workspace = data.workspace.map((w) => ({ ...w, depreciationClosedThrough: null }));
+  const workspaceId = workspace[0]?.id ?? '';
+  return {
+    workspace,
+    auditEvents: data.auditEvents,
+    assetCategories: defaultAssetCategories(workspaceId, new Date(exportedAt), newId),
+    assets: [],
+    depreciationSchedules: [],
+    depreciationLines: [],
+  };
+}
+
+function duplicates(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const value of values) (seen.has(value) ? dupes : seen).add(value);
+  return [...dupes];
+}
+
 function checkIntegrity(envelope: BackupEnvelope, tables: WorkspaceTables): string[] {
   const problems: string[] = [];
   const [workspace] = tables.workspace;
@@ -303,23 +366,53 @@ function checkIntegrity(envelope: BackupEnvelope, tables: WorkspaceTables): stri
   ) {
     problems.push('Header workspace details do not match the workspace record.');
   }
-  const counts = countRows(tables);
+
   for (const name of TABLE_NAMES) {
-    if (counts[name] !== envelope.counts[name]) {
-      problems.push(
-        `Header count for ${name} (${envelope.counts[name]}) does not match ${counts[name]} records.`,
-      );
-    }
-  }
-  const foreign = tables.auditEvents.filter((e) => e.workspaceId !== workspace.id);
-  if (foreign.length > 0) {
-    problems.push(`${foreign.length} audit event(s) belong to a different workspace.`);
-  }
-  if (new Set(tables.auditEvents.map((e) => e.id)).size !== tables.auditEvents.length) {
-    problems.push('Duplicate audit event ids.');
+    const rows: readonly { id: string; workspaceId?: string }[] = tables[name];
+    if (duplicates(rows.map((r) => r.id)).length > 0) problems.push(`Duplicate ids in ${name}.`);
+    if (name === 'workspace') continue;
+    const foreign = rows.filter((r) => r.workspaceId !== workspace.id).length;
+    if (foreign > 0)
+      problems.push(`${foreign} record(s) in ${name} belong to a different workspace.`);
   }
   if (new Set(tables.auditEvents.map((e) => e.sequence)).size !== tables.auditEvents.length) {
     problems.push('Duplicate audit sequence numbers.');
   }
-  return problems;
+
+  const categoryIds = new Set(tables.assetCategories.map((c) => c.id));
+  const assetIds = new Set(tables.assets.map((a) => a.id));
+  for (const asset of tables.assets) {
+    if (!categoryIds.has(asset.categoryId))
+      problems.push(`Asset ${asset.code} has an unknown category.`);
+  }
+  for (const code of duplicates(tables.assets.map((a) => normalizeAssetCode(a.code)))) {
+    problems.push(`Asset code ${code} is used more than once.`);
+  }
+
+  const schedulesById = new Map(tables.depreciationSchedules.map((s) => [s.id, s]));
+  for (const key of duplicates(
+    tables.depreciationSchedules.map((s) => `${s.assetId}#${s.version}`),
+  )) {
+    problems.push(`Duplicate schedule version ${key}.`);
+  }
+  if (tables.depreciationSchedules.some((s) => !assetIds.has(s.assetId))) {
+    problems.push('A depreciation schedule refers to an unknown asset.');
+  }
+  for (const asset of tables.assets) {
+    const latest = tables.depreciationSchedules
+      .filter((s) => s.assetId === asset.id)
+      .sort((a, b) => b.version - a.version)[0];
+    if (!latest) problems.push(`Asset ${asset.code} has no depreciation schedule.`);
+    else if (JSON.stringify(latest.assumptions) !== JSON.stringify(asset.depreciation)) {
+      problems.push(`Asset ${asset.code} does not match its latest depreciation schedule.`);
+    }
+  }
+  const orphanLines = tables.depreciationLines.filter((line) => {
+    const schedule = schedulesById.get(line.scheduleId);
+    return !schedule || schedule.assetId !== line.assetId;
+  }).length;
+  if (orphanLines > 0)
+    problems.push(`${orphanLines} depreciation line(s) do not match a schedule.`);
+
+  return problems.slice(0, 20);
 }

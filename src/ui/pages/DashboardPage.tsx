@@ -1,10 +1,13 @@
 import { Link } from 'react-router';
+import { formatMoney, sum } from '@/domain/money';
+import { currentYearMonth, formatYearMonth } from '@/domain/periods';
 import { backupStatus, type Workspace } from '@/domain/workspace';
 import { Alert } from '../components/Alert';
 import { FOCUS_RING } from '../components/Button';
 import { Card, DescriptionList, PageHeader } from '../components/Card';
 import { useStorageStatus } from '../device-status';
 import { formatDateTime, formatDaysAgo } from '../format';
+import { useAssets, usePeriodReport } from '../queries';
 import { useServices } from '../services';
 
 export function DashboardPage({ workspace }: { workspace: Workspace }) {
@@ -16,6 +19,7 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
   return (
     <>
       <PageHeader title="Dashboard" description="Overview of this device’s local workspace." />
+      <AssetsSummary workspace={workspace} />
       <div className="grid gap-6 md:grid-cols-2">
         <Card title="Workspace">
           <DescriptionList
@@ -66,11 +70,58 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
       <div className="mt-6">
         <Alert tone="info" title="What’s next">
           <p>
-            Assets, depreciation schedules, trip revenue, expenses and management reports will
-            appear here as they are built. Figures will always be for this device’s workspace only.
+            Trip revenue, expenses and management profit reports will appear here as they are built.
+            Figures are always for this device’s workspace only.
           </p>
         </Alert>
       </div>
     </>
+  );
+}
+
+function AssetsSummary({ workspace }: { workspace: Workspace }) {
+  const { now } = useServices();
+  const period = currentYearMonth(now(), workspace.settings.timeZone);
+  const assets = useAssets();
+  const report = usePeriodReport(period);
+  const active = assets.data?.items.filter((i) => i.asset.status === 'active') ?? [];
+  const stat = (label: string, value: string) => (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">{value}</p>
+    </div>
+  );
+  if (!assets.data || !report.data) return null;
+  return (
+    <section aria-label="Asset summary" className="mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stat('Active assets', String(active.length))}
+        {stat(
+          'Capitalised cost (active)',
+          formatMoney(
+            sum(
+              active.map((i) => i.asset.depreciation.capitalizedCost),
+              'GHS',
+            ),
+          ),
+        )}
+        {stat(
+          `Book value, end of ${formatYearMonth(period)}`,
+          formatMoney(
+            sum(
+              active.map((i) => i.position.bookValue),
+              'GHS',
+            ),
+          ),
+        )}
+        {stat(`Depreciation in ${formatYearMonth(period)}`, formatMoney(report.data.totalCharge))}
+      </div>
+      <p className="mt-2 text-xs text-slate-600">
+        GHS, management basis. Depreciation is a non-cash cost and includes archived assets.{' '}
+        <Link to="/assets" className={`underline ${FOCUS_RING}`}>
+          View assets
+        </Link>
+      </p>
+    </section>
   );
 }

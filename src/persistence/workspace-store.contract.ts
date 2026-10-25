@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   WorkspaceNotEmptyError,
+  emptyTables,
   type WorkspaceSnapshot,
   type WorkspaceStore,
 } from '@/repositories';
-import { sampleAuditEvent, sampleWorkspace, sequentialIds } from '@/test/fixtures';
+import {
+  sampleAsset,
+  sampleAuditEvent,
+  sampleCategory,
+  sampleScheduleWithLines,
+  sampleWorkspace,
+  sequentialIds,
+} from '@/test/fixtures';
 
 /**
  * Behaviour every WorkspaceStore adapter must provide. Run it from an adapter's test file so a
@@ -78,7 +86,7 @@ export function describeWorkspaceStoreContract(
       const before = await store.snapshot();
       const other: WorkspaceSnapshot = {
         schemaVersion: store.schemaVersion,
-        tables: { workspace: [sampleWorkspace({ name: 'Other' })], auditEvents: [] },
+        tables: { ...emptyTables(), workspace: [sampleWorkspace({ name: 'Other' })] },
       };
       await expect(store.restore(other)).rejects.toBeInstanceOf(WorkspaceNotEmptyError);
       expect(await store.snapshot()).toEqual(before);
@@ -89,7 +97,11 @@ export function describeWorkspaceStoreContract(
       const event = { ...sampleAuditEvent(id, ws.id), sequence: 1 };
       const bad: WorkspaceSnapshot = {
         schemaVersion: store.schemaVersion,
-        tables: { workspace: [ws], auditEvents: [event, { ...event, sequence: 2 }] },
+        tables: {
+          ...emptyTables(),
+          workspace: [ws],
+          auditEvents: [event, { ...event, sequence: 2 }],
+        },
       };
       await expect(store.restore(bad)).rejects.toThrow();
       expect(await store.isEmpty()).toBe(true);
@@ -99,6 +111,105 @@ export function describeWorkspaceStoreContract(
       await store.write(async (r) => {
         await r.workspace.put(ws);
         await r.audit.append(sampleAuditEvent(nextId(), ws.id));
+      });
+      await store.erase();
+      expect(await store.isEmpty()).toBe(true);
+    });
+
+    it('stores categories, assets, schedules and lines, and queries them by asset and period', async () => {
+      const category = sampleCategory(nextId(), ws.id);
+      const asset = sampleAsset(nextId(), ws.id, category.id);
+      const other = sampleAsset(nextId(), ws.id, category.id, { code: 'B-2' });
+      const a = sampleScheduleWithLines(nextId, asset);
+      const b = sampleScheduleWithLines(nextId, other);
+      await store.write(async (r) => {
+        await r.workspace.put(ws);
+        await r.categories.put(category);
+        await r.assets.put(asset);
+        await r.assets.put(other);
+        for (const x of [a, b]) {
+          await r.depreciation.addSchedule(x.schedule);
+          await r.depreciation.addLines(x.lines);
+        }
+      });
+      await store.read(async (r) => {
+        expect(await r.categories.get(category.id)).toEqual(category);
+        expect(await r.assets.get(asset.id)).toEqual(asset);
+        expect((await r.assets.list()).map((x) => x.id).sort()).toEqual(
+          [asset.id, other.id].sort(),
+        );
+        expect(await r.depreciation.listSchedules(asset.id)).toEqual([a.schedule]);
+        expect(await r.depreciation.listAllSchedules()).toHaveLength(2);
+        const lines = await r.depreciation.listLines(asset.id);
+        expect(lines.map((l) => l.period)).toEqual(a.lines.map((l) => l.period));
+        const period = a.lines[1]?.period ?? '';
+        expect(
+          (await r.depreciation.listLinesForPeriod(period)).map((l) => l.assetId).sort(),
+        ).toEqual([asset.id, other.id].sort());
+      });
+    });
+
+    it('updates an existing asset in place', async () => {
+      const category = sampleCategory(nextId(), ws.id);
+      const asset = sampleAsset(nextId(), ws.id, category.id);
+      await store.write(async (r) => {
+        await r.assets.put(asset);
+        await r.assets.put({ ...asset, name: 'Renamed' });
+      });
+      const assets = await store.read((r) => r.assets.list());
+      expect(assets).toHaveLength(1);
+      expect(assets[0]?.name).toBe('Renamed');
+    });
+
+    it('rejects duplicate depreciation line ids and keeps nothing from that write', async () => {
+      const category = sampleCategory(nextId(), ws.id);
+      const asset = sampleAsset(nextId(), ws.id, category.id);
+      const { schedule, lines } = sampleScheduleWithLines(nextId, asset);
+      const [first] = lines;
+      if (!first) throw new Error('expected lines');
+      await expect(
+        store.write(async (r) => {
+          await r.assets.put(asset);
+          await r.depreciation.addSchedule(schedule);
+          await r.depreciation.addLines([first, first]);
+        }),
+      ).rejects.toThrow();
+      expect(await store.isEmpty()).toBe(true);
+    });
+
+    it('lists audit events for one entity, newest first', async () => {
+      const assetId = nextId();
+      await store.write(async (r) => {
+        await r.audit.append(sampleAuditEvent(nextId(), ws.id));
+        await r.audit.append(
+          sampleAuditEvent(nextId(), ws.id, {
+            entityType: 'asset',
+            entityId: assetId,
+            action: 'asset.created',
+          }),
+        );
+        await r.audit.append(
+          sampleAuditEvent(nextId(), ws.id, {
+            entityType: 'asset',
+            entityId: assetId,
+            action: 'asset.updated',
+          }),
+        );
+      });
+      const events = await store.read((r) => r.audit.listForEntity('asset', assetId));
+      expect(events.map((e) => e.action)).toEqual(['asset.updated', 'asset.created']);
+    });
+
+    it('erases every table including assets and schedules', async () => {
+      const category = sampleCategory(nextId(), ws.id);
+      const asset = sampleAsset(nextId(), ws.id, category.id);
+      const { schedule, lines } = sampleScheduleWithLines(nextId, asset);
+      await store.write(async (r) => {
+        await r.workspace.put(ws);
+        await r.categories.put(category);
+        await r.assets.put(asset);
+        await r.depreciation.addSchedule(schedule);
+        await r.depreciation.addLines(lines);
       });
       await store.erase();
       expect(await store.isEmpty()).toBe(true);

@@ -30,6 +30,8 @@ export async function createWorkspace(page: Page, name: string): Promise<void> {
 
 /** Uses the sidebar on wide screens and the menu button on tablets/phones. */
 export async function navigateTo(page: Page, label: string): Promise<void> {
+  // Wait for the app shell so the menu check below is not racing a screen transition.
+  await page.getByRole('banner').waitFor();
   const menu = page.getByRole('button', { name: 'Open menu' });
   if (await menu.isVisible()) {
     await menu.click();

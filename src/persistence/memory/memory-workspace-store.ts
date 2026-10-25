@@ -1,13 +1,12 @@
 import {
   TABLE_NAMES,
   WorkspaceNotEmptyError,
+  emptyTables,
   type Repositories,
   type WorkspaceSnapshot,
   type WorkspaceStore,
   type WorkspaceTables,
 } from '@/repositories';
-
-const emptyTables = (): WorkspaceTables => ({ workspace: [], auditEvents: [] });
 
 /**
  * In-memory adapter for tests and as a reference implementation of the repository contract.
@@ -18,7 +17,7 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
   #state: WorkspaceTables = emptyTables();
   #queue: Promise<unknown> = Promise.resolve();
 
-  constructor(schemaVersion = 1) {
+  constructor(schemaVersion = 2) {
     this.schemaVersion = schemaVersion;
   }
 
@@ -48,14 +47,12 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
         throw new WorkspaceNotEmptyError();
       }
       const tables = structuredClone(snapshot.tables);
-      assertUnique(
-        tables.workspace.map((w) => w.id),
-        'workspace id',
-      );
-      assertUnique(
-        tables.auditEvents.map((e) => e.id),
-        'audit event id',
-      );
+      for (const name of TABLE_NAMES) {
+        assertUnique(
+          tables[name].map((row) => row.id),
+          `${name} id`,
+        );
+      }
       assertUnique(
         tables.auditEvents.map((e) => e.sequence),
         'audit sequence',
@@ -88,28 +85,82 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
     const assertWritable = () => {
       if (!writable) throw new Error('Cannot write inside a read transaction.');
     };
+    const clone = structuredClone;
+    function upsert<T extends { id: string }>(rows: T[], row: T): void {
+      const index = rows.findIndex((r) => r.id === row.id);
+      if (index === -1) rows.push(clone(row));
+      else rows[index] = clone(row);
+    }
+    function insert<T extends { id: string }>(rows: T[], row: T, label: string): void {
+      if (rows.some((r) => r.id === row.id)) throw new Error(`Duplicate ${label} id ${row.id}.`);
+      rows.push(clone(row));
+    }
     return {
       workspace: {
-        get: async () => structuredClone(tables.workspace[0]),
+        get: async () => clone(tables.workspace[0]),
         put: async (workspace) => {
           assertWritable();
-          tables.workspace = [structuredClone(workspace)];
+          tables.workspace = [clone(workspace)];
         },
       },
       audit: {
         append: async (event) => {
           assertWritable();
           const last = tables.auditEvents.at(-1)?.sequence ?? 0;
-          if (tables.auditEvents.some((e) => e.id === event.id)) {
-            throw new Error(`Duplicate audit event id ${event.id}.`);
-          }
-          const stored = { ...structuredClone(event), sequence: last + 1 };
-          tables.auditEvents.push(stored);
-          return structuredClone(stored);
+          const stored = { ...event, sequence: last + 1 };
+          insert(tables.auditEvents, stored, 'audit event');
+          return clone(stored);
         },
         list: async ({ offset, limit }) =>
-          structuredClone([...tables.auditEvents].reverse().slice(offset, offset + limit)),
+          clone([...tables.auditEvents].reverse().slice(offset, offset + limit)),
+        listForEntity: async (entityType, entityId) =>
+          clone(
+            tables.auditEvents
+              .filter((e) => e.entityType === entityType && e.entityId === entityId)
+              .reverse(),
+          ),
         count: async () => tables.auditEvents.length,
+      },
+      categories: {
+        list: async () => clone(tables.assetCategories),
+        get: async (id) => clone(tables.assetCategories.find((c) => c.id === id)),
+        put: async (category) => {
+          assertWritable();
+          upsert(tables.assetCategories, category);
+        },
+      },
+      assets: {
+        list: async () => clone(tables.assets),
+        get: async (id) => clone(tables.assets.find((a) => a.id === id)),
+        put: async (asset) => {
+          assertWritable();
+          upsert(tables.assets, asset);
+        },
+      },
+      depreciation: {
+        listSchedules: async (assetId) =>
+          clone(
+            tables.depreciationSchedules
+              .filter((s) => s.assetId === assetId)
+              .sort((a, b) => a.version - b.version),
+          ),
+        listAllSchedules: async () => clone(tables.depreciationSchedules),
+        addSchedule: async (schedule) => {
+          assertWritable();
+          insert(tables.depreciationSchedules, schedule, 'schedule');
+        },
+        listLines: async (assetId) =>
+          clone(
+            tables.depreciationLines
+              .filter((l) => l.assetId === assetId)
+              .sort((a, b) => a.period.localeCompare(b.period)),
+          ),
+        listLinesForPeriod: async (period) =>
+          clone(tables.depreciationLines.filter((l) => l.period === period)),
+        addLines: async (lines) => {
+          assertWritable();
+          for (const line of lines) insert(tables.depreciationLines, line, 'depreciation line');
+        },
       },
     };
   }

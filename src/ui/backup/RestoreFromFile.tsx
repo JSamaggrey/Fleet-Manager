@@ -104,10 +104,15 @@ export function RestoreFromFile({ onRestored }: { onRestored: () => void }) {
               ],
               ['Exported', formatDateTime(preview.exportedAt, backupTimeZone)],
               ['Made with', `${preview.app.name} ${preview.app.version}`],
-              ['Data version', `${preview.schemaVersion} (format ${preview.formatVersion})`],
+              [
+                'Data version',
+                preview.upgradedFrom === null
+                  ? `${preview.schemaVersion} (format ${preview.formatVersion})`
+                  : `${preview.schemaVersion}, from an earlier app version: upgraded on restore (the file is not changed)`,
+              ],
               [
                 'Records',
-                `${preview.counts.workspace} workspace, ${preview.counts.auditEvents} audit events`,
+                `${preview.counts.assets} assets, ${preview.counts.assetCategories} categories, ${preview.counts.depreciationSchedules} schedule versions (${preview.counts.depreciationLines} monthly lines), ${preview.counts.auditEvents} audit events`,
               ],
               ['File size', formatBytes(preview.sizeBytes)],
             ]}
