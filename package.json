@@ -1,7 +1,7 @@
 {
   "name": "fms",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Offline-first fleet and asset management (management reporting, GHS).",
   "type": "module",
   "packageManager": "pnpm@12.15.0",
@@ -38,6 +38,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "4.3.3",

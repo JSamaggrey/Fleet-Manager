@@ -57,6 +57,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // UI tests type into many form fields; the 5 s default is tight in a full parallel run.
+    testTimeout: 20_000,
     coverage: { provider: 'v8', include: ['src/**'], exclude: ['src/**/*.test.*', 'src/test/**'] },
   },
 });

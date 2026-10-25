@@ -3,12 +3,13 @@
 Management reporting for transport vehicles and other business assets. It runs on each device
 independently with no internet, LAN, or server after installation. Reporting currency is GHS.
 
-> **Status: Phase 4 (reports).** Installable offline app, local workspace, settings, audit log,
-> full backup/restore, asset register with categories, straight-line depreciation schedules with
-> revisions and period close, trip/job revenue, direct and shared expenses, corrections and voids,
-> weekly/monthly/quarterly/yearly/custom management profit reports with drill-through, an
-> exceptions view, and CSV export. Tasks and release hardening are next. See `AGENT.md` for the
-> specification, `PROGRESS.md` for status, and `docs/` for decisions.
+> **Status: MVP feature-complete (Phase 5), pending real-device QA.** Installable offline app,
+> local workspace, settings, audit log, full backup/restore, asset register with categories,
+> straight-line depreciation schedules with revisions and period close, trip/job revenue, direct
+> and shared expenses, corrections and voids, weekly/monthly/quarterly/yearly/custom management
+> profit reports with drill-through, exceptions, a task list derived from the data, and CSV
+> export. Automated WCAG 2.1 AA checks pass. See `AGENT.md` for the specification, `PROGRESS.md`
+> for status, and `docs/` for decisions and guides.
 
 **Each device has its own workspace. Nothing syncs between devices.** Moving data between devices
 uses an explicit full backup and restore. See [Backing up and restoring](docs/backup-and-restore.md).
@@ -28,8 +29,9 @@ pnpm dev                                       # http://localhost:5173
 
 ## Use offline
 
-1. Serve the production build. Use `pnpm build`, then host `dist/` at a fixed HTTPS address, or
-   run `pnpm preview` for local testing at `http://localhost:4173`.
+1. Serve the production build. Use `pnpm build`, then host `dist/` at a fixed HTTPS address
+   (see [Hosting and installing](docs/deployment.md)), or run `pnpm preview` for local testing at
+   `http://localhost:4173`.
 2. Open it once while the server is reachable. The header shows **Available offline** once the app
    is cached.
 3. Optionally install it: the install icon in the Chrome/Edge address bar, or Share → Add to Home
@@ -58,6 +60,10 @@ pnpm dev                                       # http://localhost:5173
 - [Product defaults for open questions](docs/product-defaults.md)
 - [Backing up, restoring, and moving a workspace](docs/backup-and-restore.md)
 - [Backup file format](docs/backup-format.md)
+- [Hosting and installing](docs/deployment.md)
+- [User guide (pilot)](docs/user-guide.md)
+- [Real-device QA script](docs/device-qa.md)
+- [Release checklist](docs/release-checklist.md)
 
 ## Data safety
 

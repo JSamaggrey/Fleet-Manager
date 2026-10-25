@@ -29,6 +29,7 @@ import {
   RevenuePage,
   ReviseDepreciationPage,
   SettingsPage,
+  TasksPage,
 } from './lazy-pages';
 
 function NotFound() {
@@ -63,6 +64,7 @@ function WorkspaceRoutes({ workspace }: { workspace: Workspace }) {
         <Route path="expenses/:id/edit" element={<EditExpensePage workspace={workspace} />} />
         <Route path="reports" element={<ReportsPage workspace={workspace} />} />
         <Route path="exceptions" element={<ExceptionsPage />} />
+        <Route path="tasks" element={<TasksPage />} />
         <Route path="backup" element={<BackupRestorePage workspace={workspace} />} />
         <Route path="settings" element={<SettingsPage workspace={workspace} />} />
         <Route path="audit" element={<AuditPage workspace={workspace} />} />

@@ -146,8 +146,8 @@ function ActivitySummary({ workspace }: { workspace: Workspace }) {
             {all.unassignedCount} unassigned
           </p>
           <p className="mt-1 text-sm">
-            <Link to="/exceptions" className={`underline ${FOCUS_RING}`}>
-              View exceptions
+            <Link to="/tasks" className={`underline ${FOCUS_RING}`}>
+              Open tasks
             </Link>
           </p>
         </div>

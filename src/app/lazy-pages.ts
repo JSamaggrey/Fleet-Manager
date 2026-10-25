@@ -54,6 +54,9 @@ export const ReportsPage = lazy(() =>
 export const ExceptionsPage = lazy(() =>
   import('@/ui/pages/ExceptionsPage').then((m) => ({ default: m.ExceptionsPage })),
 );
+export const TasksPage = lazy(() =>
+  import('@/ui/pages/TasksPage').then((m) => ({ default: m.TasksPage })),
+);
 export const BackupRestorePage = lazy(() =>
   import('@/ui/pages/BackupRestorePage').then((m) => ({ default: m.BackupRestorePage })),
 );

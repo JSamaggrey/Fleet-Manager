@@ -5,6 +5,7 @@ import {
   DatabaseBackup,
   History,
   LayoutDashboard,
+  ListTodo,
   Menu,
   Receipt,
   Settings,
@@ -12,8 +13,8 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react';
-import { Suspense, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { backupStatus, type Workspace } from '@/domain/workspace';
 import { Alert } from '../components/Alert';
 import { Badge } from '../components/Card';
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: '/expenses', label: 'Expenses', Icon: Receipt, end: false },
   { to: '/depreciation', label: 'Depreciation', Icon: TrendingDown, end: false },
   { to: '/reports', label: 'Reports', Icon: ChartColumn, end: false },
+  { to: '/tasks', label: 'Tasks', Icon: ListTodo, end: false },
   { to: '/exceptions', label: 'Exceptions', Icon: TriangleAlert, end: false },
   { to: '/backup', label: 'Backup & Restore', Icon: DatabaseBackup, end: false },
   { to: '/settings', label: 'Settings', Icon: Settings, end: false },
@@ -92,6 +94,16 @@ function BackupReminder({ workspace }: { workspace: Workspace }) {
 
 export function AppShell({ workspace }: { workspace: Workspace }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname } = useLocation();
+  const previousPath = useRef(pathname);
+
+  // After navigating, move focus to the page content so keyboard and screen-reader users start
+  // at the new page rather than on the link they used. Not on first load.
+  useEffect(() => {
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    document.getElementById('main')?.focus({ preventScroll: false });
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

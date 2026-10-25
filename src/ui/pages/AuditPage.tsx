@@ -34,7 +34,12 @@ export function AuditPage({ workspace }: { workspace: Workspace }) {
       {audit.data && audit.data.total === 0 && <EmptyState title="No audit events yet" />}
       {audit.data && audit.data.total > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div
+            className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+            tabIndex={0}
+            role="region"
+            aria-label="Audit events"
+          >
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <caption className="sr-only">Audit events</caption>
               <thead className="bg-slate-50 text-left text-slate-700">

@@ -94,7 +94,12 @@ export function DepreciationPage({ workspace }: { workspace: Workspace }) {
               No asset has a scheduled charge for {formatYearMonth(report.data.period)}.
             </EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div
+              className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+              tabIndex={0}
+              role="region"
+              aria-label={`Depreciation for ${formatYearMonth(report.data.period)}`}
+            >
               <table className="min-w-full divide-y divide-slate-200 text-sm tabular-nums">
                 <caption className="sr-only">
                   Depreciation for {formatYearMonth(report.data.period)}

@@ -71,7 +71,8 @@ adapter (or an API/PostgreSQL backend) can be added later without rewriting busi
 | ---------------------------------------------------------- | ---------------------------------------------------------- |
 | Offline start and core workflow, Chromium (desktop)        | Passing: `e2e/offline.spec.ts`                             |
 | Offline start and core workflow, WebKit (iPad emulation)   | Passing: `e2e/offline.spec.ts`                             |
-| Real iPad and real Windows device                          | **Not yet verified.** Manual check required.               |
+| Real iPad and real Windows device                          | **Not yet verified.** Run `docs/device-qa.md`.             |
+| Automated WCAG 2.1 AA scan of every page (axe)             | Passing: `e2e/accessibility.spec.ts` (both engines)        |
 | Workspace survives reload; `persist()` outcome shown in UI | Passing (reload in e2e; storage status on Backup page)     |
 | Multi-table writes are atomic                              | Passing: contract tests (Dexie and memory)                 |
 | Backup → restore reproduces identical records and IDs      | Passing: unit tests (both adapters) and e2e (both engines) |

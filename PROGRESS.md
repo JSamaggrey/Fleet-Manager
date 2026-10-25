@@ -5,18 +5,23 @@ gotchas** that aren't obvious from the code. Keep it current at the end of each 
 
 ## Status
 
-| Phase                                                                      | State    | Commit                          |
-| -------------------------------------------------------------------------- | -------- | ------------------------------- |
-| 0 Scaffold, architecture decision, money domain                            | Done     | `54cf965`                       |
-| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done     | `1bdc92c`                       |
-| 2 Assets, categories, depreciation schedules, revisions, period close      | Done     | `e0203be`                       |
-| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done     | `91179ee`                       |
-| 4 Reports, dashboard, period filters, CSV export, exceptions               | Done     | see `git log --grep "Phase 4:"` |
-| 5 Tasks, accessibility/tablet QA, release docs                             | **Next** | —                               |
+| Phase                                                                      | State | Commit                          |
+| -------------------------------------------------------------------------- | ----- | ------------------------------- |
+| 0 Scaffold, architecture decision, money domain                            | Done  | `54cf965`                       |
+| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done  | `1bdc92c`                       |
+| 2 Assets, categories, depreciation schedules, revisions, period close      | Done  | `e0203be`                       |
+| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done  | `91179ee`                       |
+| 4 Reports, dashboard, period filters, CSV export, exceptions               | Done  | `5e0fc18`                       |
+| 5 Tasks, accessibility, release docs (real-device QA still manual)         | Done  | see `git log --grep "Phase 5:"` |
 
-Last verified (Phase 4, app v0.4.0): `pnpm check` green (267 unit/component tests).
-`pnpm test:e2e` 20/20 on desktop-chromium and tablet-webkit (adds offline reports, drill-through
-and CSV download). Main JS chunk is 491 KB (157 KB gzipped) after route splitting.
+Last verified (Phase 5, app v0.5.0): `pnpm check` green (274 unit/component tests).
+`pnpm test:e2e` 22/22 on desktop-chromium and tablet-webkit, including the axe WCAG 2.1 AA scan
+of every page. Main JS chunk is about 491 KB (157 KB gzipped).
+
+**What's next:** run `docs/device-qa.md` on a real iPad and Windows PC; decide hosting
+(`docs/deployment.md`); get answers to the open product questions below. After that, follow
+`docs/release-checklist.md` for the pilot release. Anything further (stored tasks, charts,
+disposal, period lock for revenue/expenses, backend/sync) needs a product decision first.
 
 ## Environment (Windows)
 
@@ -146,35 +151,28 @@ e2e/               smoke, offline, backup-restore, assets, transactions, reports
 8. UI: hooks in `ui/queries.ts`, page in `app/lazy-pages.ts`, nav item in `AppShell.tsx`, route
    in `App.tsx`.
 
-## Phase 5 scope (AGENT.md §11–12, §14–15)
+## Phase 5 notes (done)
 
-- Tasks (§11), from captured data only:
-  - The exceptions in `report-service.exceptions()` are the natural source: unassigned items,
-    incomplete setup, fully depreciated active assets, unclosed months.
-  - Task fields are title, source record, due date, status, priority and history. Decide whether
-    tasks are derived (computed, nothing stored) or stored with status. Stored needs a schema v4,
-    using the checklist above.
-  - No registration/insurance/inspection reminders unless those dates are added to assets. No
-    maintenance tasks.
-  - **Product question 5 (task categories) is still open. Ask before building stored tasks.**
-- Accessibility pass:
-  - keyboard-only walkthrough of every page and focus after navigation;
-  - colour contrast;
-  - consider `@axe-core/playwright` checks in e2e.
-- Tablet QA on a real iPad, plus the ADR 0001 proof table on a real Windows PC.
-- Release docs:
-  - install/hosting guide (once the hosting decision is made);
-  - release checklist;
-  - user guide for backup cadence;
-  - a final backup/restore validation run.
-- Optional: charts (load the dataviz skill first) only if they add value.
-
-The remaining items from AGENT.md §15 are all covered by tests now; re-verify them at release.
+- **Tasks** (`application/tasks.ts`, `deriveTasks`) are derived from `exceptions()` and nothing is
+  stored (product-defaults row 5). Making them stored, with status, owner and history, needs schema
+  v4 via the checklist above, and an answer to product question 5 first.
+- **Accessibility:**
+  - `e2e/accessibility.spec.ts` runs axe (WCAG 2.1 AA) on onboarding, every routed page and two
+    detail pages. Add new pages to its `PAGES` list.
+  - Wide-table scroll containers are focusable `role="region"` with a label.
+  - `AppShell` moves focus to `#main` after each route change.
+- **Docs:** `deployment.md` (hosting options and HTTPS requirement), `device-qa.md` (manual script
+  with a results table), `user-guide.md`, `release-checklist.md`.
+- Test timeouts: Vitest `testTimeout` 20 s and Testing Library `asyncUtilTimeout` 5 s, because
+  the machine is slow under a full parallel run.
+- AGENT.md §15 acceptance items are all covered by automated tests except real-device checks.
 
 ## Open items / known limitations
 
-- How devices receive the app (fixed HTTPS hosting vs local install) is undecided.
-- Not yet verified on a real iPad or Windows device (ADR 0001 proof table).
+- How devices receive the app is undecided. The options are in `docs/deployment.md`; it needs
+  HTTPS.
+- Not yet verified on a real iPad or Windows device. Run `docs/device-qa.md` and record the
+  results in ADR 0001.
 - Backups are unencrypted. The checksum catches corruption, not authorship.
 - Main JS chunk is 491 KB (157 KB gzipped), mostly React, Zod, TanStack and Dexie. Acceptable for
   now.

@@ -19,7 +19,13 @@ export function DataTable<TData extends RowData>({
 }) {
   const rows = table.getRowModel().rows;
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div
+      className={`overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm ${FOCUS_RING}`}
+      // Focusable so keyboard users can scroll a wide table sideways.
+      tabIndex={0}
+      role="region"
+      aria-label={caption}
+    >
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-slate-50 text-left text-slate-700">

@@ -32,6 +32,8 @@ export function ScheduleTable({
     <div
       className={`overflow-auto rounded-md border border-slate-200 ${maxHeightClass}`}
       tabIndex={0}
+      role="region"
+      aria-label={caption}
     >
       <table className="min-w-full text-sm tabular-nums">
         <caption className="sr-only">{caption}</caption>
@@ -74,7 +76,7 @@ export function ScheduleTable({
                 aria-current={isCurrent ? 'date' : undefined}
               >
                 <td className="px-3 py-1.5 whitespace-nowrap">{formatYearMonth(line.period)}</td>
-                <td className="px-3 py-1.5 text-slate-500">{line.periodNumber}</td>
+                <td className="px-3 py-1.5 text-slate-600">{line.periodNumber}</td>
                 <td className="px-3 py-1.5 text-right">{formatMoney(line.openingBookValue)}</td>
                 <td className="px-3 py-1.5 text-right font-medium">{formatMoney(line.charge)}</td>
                 <td className="px-3 py-1.5 text-right">{formatMoney(line.accumulated)}</td>
@@ -86,7 +88,7 @@ export function ScheduleTable({
                       status === 'Closed'
                         ? 'bg-slate-200 text-slate-800'
                         : status === 'Projected'
-                          ? 'text-slate-500'
+                          ? 'text-slate-600'
                           : 'bg-green-100 text-green-900'
                     }`}
                   >
