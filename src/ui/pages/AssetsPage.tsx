@@ -1,21 +1,10 @@
 import {
-  columnFilteringFeature,
   createColumnHelper,
-  createFilteredRowModel,
-  createPaginatedRowModel,
-  createSortedRowModel,
-  filterFn_includesString,
-  globalFilteringFeature,
-  rowPaginationFeature,
-  rowSortingFeature,
-  sortFn_alphanumeric,
-  sortFn_basic,
-  tableFeatures,
   useTable,
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import type { AssetSummary } from '@/application/asset-service';
@@ -23,23 +12,13 @@ import { formatMoney, sum } from '@/domain/money';
 import { formatYearMonth } from '@/domain/periods';
 import { FOCUS_RING } from '../components/Button';
 import { Badge, PageHeader } from '../components/Card';
+import { DataTable, Pager } from '../components/DataTable';
+import { listFeatures } from '../components/list-features';
 import { INPUT_CLASS } from '../components/Field';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAssets } from '../queries';
 
-const features = tableFeatures({
-  columnFilteringFeature,
-  globalFilteringFeature,
-  rowSortingFeature,
-  rowPaginationFeature,
-  filteredRowModel: createFilteredRowModel(),
-  sortedRowModel: createSortedRowModel(),
-  paginatedRowModel: createPaginatedRowModel(),
-  filterFns: { includesString: filterFn_includesString },
-  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
-});
-
-const helper = createColumnHelper<typeof features, AssetSummary>();
+const helper = createColumnHelper<typeof listFeatures, AssetSummary>();
 
 const STATE_LABEL: Record<AssetSummary['position']['state'], string> = {
   'not-started': 'Not started',
@@ -61,11 +40,27 @@ const columns = helper.columns([
       </Link>
     ),
   }),
-  helper.accessor((row) => row.asset.name, { id: 'name', header: 'Name', sortFn: 'alphanumeric' }),
+  helper.accessor((row) => row.asset.name, {
+    id: 'name',
+    header: 'Name',
+    sortFn: 'alphanumeric',
+    meta: { wrap: true },
+    cell: (info) => (
+      <>
+        {info.getValue()}
+        {info.row.original.asset.status === 'archived' && (
+          <span className="ml-2">
+            <Badge>Archived</Badge>
+          </span>
+        )}
+      </>
+    ),
+  }),
   helper.accessor((row) => row.categoryName, {
     id: 'category',
     header: 'Category',
     sortFn: 'alphanumeric',
+    meta: { wrap: true },
   }),
   helper.accessor((row) => row.asset.vehicle?.registration ?? '', {
     id: 'registration',
@@ -129,7 +124,7 @@ export function AssetsPage() {
   );
 
   const table = useTable({
-    features,
+    features: listFeatures,
     columns,
     data,
     state: { sorting, pagination, globalFilter: search },
@@ -242,113 +237,18 @@ export function AssetsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <caption className="sr-only">Assets, sortable by column</caption>
-              <thead className="bg-slate-50 text-left text-slate-700">
-                {table.getHeaderGroups().map((group) => (
-                  <tr key={group.id}>
-                    {group.headers.map((header) => {
-                      const sorted = header.column.getIsSorted();
-                      const numeric = (
-                        header.column.columnDef.meta as { numeric?: boolean } | undefined
-                      )?.numeric;
-                      return (
-                        <th
-                          key={header.id}
-                          scope="col"
-                          aria-sort={
-                            sorted === 'asc'
-                              ? 'ascending'
-                              : sorted === 'desc'
-                                ? 'descending'
-                                : 'none'
-                          }
-                          className={`px-4 py-2 font-medium whitespace-nowrap ${numeric ? 'text-right' : ''}`}
-                        >
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className={`inline-flex items-center gap-1 rounded ${FOCUS_RING}`}
-                          >
-                            <table.FlexRender header={header} />
-                            {sorted === 'asc' ? (
-                              <ArrowUp aria-hidden="true" className="size-3.5" />
-                            ) : sorted === 'desc' ? (
-                              <ArrowDown aria-hidden="true" className="size-3.5" />
-                            ) : (
-                              <ArrowUpDown aria-hidden="true" className="size-3.5 text-slate-400" />
-                            )}
-                          </button>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
-                    {row.getAllCells().map((cell) => {
-                      const numeric = (
-                        cell.column.columnDef.meta as { numeric?: boolean } | undefined
-                      )?.numeric;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={`px-4 py-2 ${numeric ? 'text-right tabular-nums' : ''} ${
-                            cell.column.id === 'name' || cell.column.id === 'category'
-                              ? ''
-                              : 'whitespace-nowrap'
-                          }`}
-                        >
-                          <table.FlexRender cell={cell} />
-                          {cell.column.id === 'name' &&
-                            row.original.asset.status === 'archived' && (
-                              <span className="ml-2">
-                                <Badge>Archived</Badge>
-                              </span>
-                            )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredRows.length === 0 && (
-              <p className="p-6 text-center text-sm text-slate-600">
-                No assets match these filters.
-              </p>
-            )}
-          </div>
+          <DataTable
+            table={table}
+            caption="Assets, sortable by column"
+            emptyMessage="No assets match these filters."
+          />
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-700">
             <p>
               {filteredRows.length} asset{filteredRows.length === 1 ? '' : 's'} · total book value{' '}
               <strong>{formatMoney(totalBookValue)}</strong>
             </p>
-            <div className="flex items-center gap-2">
-              <span>
-                Page {table.state.pagination.pageIndex + 1} of {Math.max(1, table.getPageCount())}
-              </span>
-              <button
-                type="button"
-                className={`rounded-md px-3 py-1.5 ring-1 ring-slate-300 disabled:text-slate-400 ${FOCUS_RING}`}
-                disabled={!table.getCanPreviousPage()}
-                onClick={() => table.previousPage()}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className={`rounded-md px-3 py-1.5 ring-1 ring-slate-300 disabled:text-slate-400 ${FOCUS_RING}`}
-                disabled={!table.getCanNextPage()}
-                onClick={() => table.nextPage()}
-              >
-                Next
-              </button>
-            </div>
+            <Pager table={table} />
           </div>
         </>
       )}

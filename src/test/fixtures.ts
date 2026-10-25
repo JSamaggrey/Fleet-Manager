@@ -6,6 +6,7 @@ import {
   type DepreciationSchedule,
 } from '@/domain/depreciation';
 import { parseMoney } from '@/domain/money';
+import type { Expense, ExpenseCategory, RevenueEntry } from '@/domain/transactions';
 import { newWorkspace, type Workspace } from '@/domain/workspace';
 import type { NewAuditEvent } from '@/repositories';
 
@@ -111,6 +112,79 @@ export function sampleAsset(
     status: 'active',
     createdAt: '2026-01-15T09:00:00.000Z',
     updatedAt: '2026-01-15T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function sampleExpenseCategory(
+  id: string,
+  workspaceId: string,
+  overrides: Partial<ExpenseCategory> = {},
+): ExpenseCategory {
+  return {
+    id,
+    workspaceId,
+    name: 'Fuel',
+    archived: false,
+    createdAt: '2026-01-15T09:00:00.000Z',
+    updatedAt: '2026-01-15T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function sampleRevenue(
+  id: string,
+  workspaceId: string,
+  assetId: string | null,
+  overrides: Partial<RevenueEntry> = {},
+): RevenueEntry {
+  return {
+    id,
+    workspaceId,
+    serviceDate: '2026-01-20',
+    reference: 'TRIP-1',
+    assetId,
+    customer: null,
+    description: null,
+    origin: null,
+    destination: null,
+    quantity: null,
+    quantityUnit: null,
+    rate: null,
+    amount: parseMoney('450.00', 'GHS'),
+    paymentStatus: null,
+    notes: null,
+    void: null,
+    createdAt: '2026-01-20T09:00:00.000Z',
+    updatedAt: '2026-01-20T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function sampleExpense(
+  id: string,
+  workspaceId: string,
+  categoryId: string,
+  overrides: Partial<Expense> = {},
+): Expense {
+  return {
+    id,
+    workspaceId,
+    expenseDate: '2026-01-21',
+    assignment: 'shared',
+    assetId: null,
+    categoryId,
+    nature: 'operating',
+    vendor: null,
+    reference: null,
+    description: null,
+    amount: parseMoney('100.00', 'GHS'),
+    paymentStatus: null,
+    paymentMethod: null,
+    notes: null,
+    void: null,
+    createdAt: '2026-01-21T09:00:00.000Z',
+    updatedAt: '2026-01-21T09:00:00.000Z',
     ...overrides,
   };
 }

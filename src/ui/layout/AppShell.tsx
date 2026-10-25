@@ -1,9 +1,11 @@
 import {
+  Banknote,
   Car,
   DatabaseBackup,
   History,
   LayoutDashboard,
   Menu,
+  Receipt,
   Settings,
   TrendingDown,
   X,
@@ -20,6 +22,8 @@ import { StatusIndicators } from './StatusIndicators';
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', Icon: LayoutDashboard, end: true },
   { to: '/assets', label: 'Assets', Icon: Car, end: false },
+  { to: '/revenue', label: 'Revenue', Icon: Banknote, end: false },
+  { to: '/expenses', label: 'Expenses', Icon: Receipt, end: false },
   { to: '/depreciation', label: 'Depreciation', Icon: TrendingDown, end: false },
   { to: '/backup', label: 'Backup & Restore', Icon: DatabaseBackup, end: false },
   { to: '/settings', label: 'Settings', Icon: Settings, end: false },

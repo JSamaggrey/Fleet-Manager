@@ -114,6 +114,10 @@ export function RestoreFromFile({ onRestored }: { onRestored: () => void }) {
                 'Records',
                 `${preview.counts.assets} assets, ${preview.counts.assetCategories} categories, ${preview.counts.depreciationSchedules} schedule versions (${preview.counts.depreciationLines} monthly lines), ${preview.counts.auditEvents} audit events`,
               ],
+              [
+                'Revenue and expenses',
+                `${preview.counts.revenueEntries} revenue entries, ${preview.counts.expenses} expenses, ${preview.counts.expenseCategories} expense categories (voided records included)`,
+              ],
               ['File size', formatBytes(preview.sizeBytes)],
             ]}
           />

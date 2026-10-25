@@ -9,6 +9,9 @@ import {
   sampleAsset,
   sampleAuditEvent,
   sampleCategory,
+  sampleExpense,
+  sampleExpenseCategory,
+  sampleRevenue,
   sampleScheduleWithLines,
   sampleWorkspace,
   sequentialIds,
@@ -213,6 +216,48 @@ export function describeWorkspaceStoreContract(
       });
       await store.erase();
       expect(await store.isEmpty()).toBe(true);
+    });
+
+    it('stores revenue, expenses and expense categories, and updates them in place', async () => {
+      const category = sampleCategory(nextId(), ws.id);
+      const asset = sampleAsset(nextId(), ws.id, category.id);
+      const fuel = sampleExpenseCategory(nextId(), ws.id);
+      const assigned = sampleRevenue(nextId(), ws.id, asset.id);
+      const unassigned = sampleRevenue(nextId(), ws.id, null, { reference: 'JOB-2' });
+      const direct = sampleExpense(nextId(), ws.id, fuel.id, {
+        assignment: 'asset',
+        assetId: asset.id,
+      });
+      const shared = sampleExpense(nextId(), ws.id, fuel.id);
+      await store.write(async (r) => {
+        await r.workspace.put(ws);
+        await r.categories.put(category);
+        await r.assets.put(asset);
+        await r.expenseCategories.put(fuel);
+        await r.revenue.put(assigned);
+        await r.revenue.put(unassigned);
+        await r.expenses.put(direct);
+        await r.expenses.put(shared);
+      });
+      const voided = {
+        ...assigned,
+        void: { voidedAt: '2026-01-22T09:00:00.000Z', reason: 'Entered twice' },
+      };
+      await store.write((r) => r.revenue.put(voided));
+      await store.read(async (r) => {
+        expect(await r.expenseCategories.list()).toEqual([fuel]);
+        expect(await r.revenue.get(assigned.id)).toEqual(voided);
+        expect(await r.revenue.get(unassigned.id)).toEqual(unassigned);
+        expect(await r.revenue.list()).toHaveLength(2);
+        expect((await r.expenses.list()).map((e) => e.id).sort()).toEqual(
+          [direct.id, shared.id].sort(),
+        );
+        expect(await r.expenses.get(direct.id)).toEqual(direct);
+      });
+
+      const target = await createStore();
+      await target.restore(await store.snapshot());
+      expect(await target.snapshot()).toEqual(await store.snapshot());
     });
 
     it('returns copies so callers cannot mutate stored data', async () => {

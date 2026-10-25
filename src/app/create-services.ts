@@ -1,5 +1,7 @@
 import { createAssetService } from '@/application/asset-service';
 import { createDepreciationService } from '@/application/depreciation-service';
+import { createExpenseService } from '@/application/expense-service';
+import { createRevenueService } from '@/application/revenue-service';
 import { createWorkspaceService } from '@/application/workspace-service';
 import { createBackupService } from '@/backup/backup-service';
 import { LOCAL_ACTOR } from '@/domain/audit';
@@ -23,6 +25,8 @@ export function createServices(
     workspace: createWorkspaceService(deps),
     assets: createAssetService(deps),
     depreciation: createDepreciationService(deps),
+    revenue: createRevenueService(deps),
+    expenses: createExpenseService(deps),
     backup: createBackupService({ ...deps, app: { name: APP_NAME, version: __APP_VERSION__ } }),
     saveFile: overrides.saveFile ?? downloadBackupFile,
     now,

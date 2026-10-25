@@ -1,5 +1,6 @@
 import { defaultAssetCategories, normalizeAssetCode } from '@/domain/assets';
 import { LOCAL_ACTOR, type AuditEvent } from '@/domain/audit';
+import { defaultExpenseCategories } from '@/domain/transactions';
 import type { WorkspaceKind } from '@/domain/workspace';
 import {
   TABLE_NAMES,
@@ -15,13 +16,14 @@ import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   MAX_BACKUP_BYTES,
+  BACKUP_DATA_SCHEMAS,
   SUPPORTED_SCHEMA_VERSIONS,
-  backupDataSchemaV1,
-  backupDataSchemaV2,
   backupEnvelopeSchema,
   backupHeaderSchema,
   type BackupDataV1,
+  type BackupDataV2,
   type BackupEnvelope,
+  type SupportedSchemaVersion,
 } from './format';
 
 export interface AppInfo {
@@ -198,9 +200,8 @@ export function createBackupService(deps: BackupServiceDependencies) {
         );
       }
 
-      const dataSchema =
-        envelope.data.schemaVersion === 1 ? backupDataSchemaV1 : backupDataSchemaV2;
-      const data = dataSchema.safeParse(envelope.data.data);
+      const version = envelope.data.schemaVersion as SupportedSchemaVersion;
+      const data = BACKUP_DATA_SCHEMAS[version].safeParse(envelope.data.data);
       if (!data.success) {
         return fail('invalid-data', 'The backup contains invalid records.', issues(data.error));
       }
@@ -211,10 +212,7 @@ export function createBackupService(deps: BackupServiceDependencies) {
       }
 
       // Older data versions are upgraded in memory; the file itself is never modified.
-      const tables =
-        envelope.data.schemaVersion === 1
-          ? upgradeV1ToV2(data.data as BackupDataV1, newId, envelope.data.exportedAt)
-          : (data.data as WorkspaceTables);
+      const tables = upgradeToCurrent(version, data.data, newId, envelope.data.exportedAt);
 
       const integrityProblems = checkIntegrity(envelope.data, tables);
       if (integrityProblems.length > 0) {
@@ -329,11 +327,7 @@ function checkCounts(envelope: BackupEnvelope, data: Record<string, readonly unk
 }
 
 /** Version 1 had no assets: add the period-close marker and the default categories. */
-function upgradeV1ToV2(
-  data: BackupDataV1,
-  newId: () => string,
-  exportedAt: string,
-): WorkspaceTables {
+function upgradeV1ToV2(data: BackupDataV1, newId: () => string, exportedAt: string): BackupDataV2 {
   const workspace = data.workspace.map((w) => ({ ...w, depreciationClosedThrough: null }));
   const workspaceId = workspace[0]?.id ?? '';
   return {
@@ -344,6 +338,41 @@ function upgradeV1ToV2(
     depreciationSchedules: [],
     depreciationLines: [],
   };
+}
+
+/** Version 2 had no revenue or expenses: add the default expense categories. */
+function upgradeV2ToV3(
+  data: BackupDataV2,
+  newId: () => string,
+  exportedAt: string,
+): WorkspaceTables {
+  const workspaceId = data.workspace[0]?.id ?? '';
+  return {
+    ...data,
+    expenseCategories: defaultExpenseCategories(workspaceId, new Date(exportedAt), newId),
+    revenueEntries: [],
+    expenses: [],
+  };
+}
+
+function upgradeToCurrent(
+  version: SupportedSchemaVersion,
+  data: unknown,
+  newId: () => string,
+  exportedAt: string,
+): WorkspaceTables {
+  switch (version) {
+    case 1:
+      return upgradeV2ToV3(
+        upgradeV1ToV2(data as BackupDataV1, newId, exportedAt),
+        newId,
+        exportedAt,
+      );
+    case 2:
+      return upgradeV2ToV3(data as BackupDataV2, newId, exportedAt);
+    case 3:
+      return data as WorkspaceTables;
+  }
 }
 
 function duplicates(values: readonly string[]): string[] {
@@ -413,6 +442,16 @@ function checkIntegrity(envelope: BackupEnvelope, tables: WorkspaceTables): stri
   }).length;
   if (orphanLines > 0)
     problems.push(`${orphanLines} depreciation line(s) do not match a schedule.`);
+
+  const unknownAsset = (assetId: string | null) => assetId !== null && !assetIds.has(assetId);
+  const badRevenue = tables.revenueEntries.filter((r) => unknownAsset(r.assetId)).length;
+  if (badRevenue > 0) problems.push(`${badRevenue} revenue entry(ies) refer to an unknown asset.`);
+  const badExpenses = tables.expenses.filter((e) => unknownAsset(e.assetId)).length;
+  if (badExpenses > 0) problems.push(`${badExpenses} expense(s) refer to an unknown asset.`);
+  const expenseCategoryIds = new Set(tables.expenseCategories.map((c) => c.id));
+  const badCategories = tables.expenses.filter((e) => !expenseCategoryIds.has(e.categoryId)).length;
+  if (badCategories > 0)
+    problems.push(`${badCategories} expense(s) have an unknown expense category.`);
 
   return problems.slice(0, 20);
 }

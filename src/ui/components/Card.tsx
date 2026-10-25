@@ -48,9 +48,15 @@ export function Badge({
   tone = 'neutral',
 }: {
   children: ReactNode;
-  tone?: 'neutral' | 'demo';
+  tone?: 'neutral' | 'demo' | 'warning' | 'danger' | 'info';
 }) {
-  const colors = tone === 'demo' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-800';
+  const colors = {
+    neutral: 'bg-slate-100 text-slate-800',
+    demo: 'bg-amber-100 text-amber-900',
+    warning: 'bg-amber-100 text-amber-900',
+    danger: 'bg-red-100 text-red-800',
+    info: 'bg-blue-100 text-blue-900',
+  }[tone];
   return (
     <span
       className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${colors}`}

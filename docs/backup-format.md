@@ -6,8 +6,8 @@ devices, and the planned route for any future migration to a server database.
 
 CSV/XLSX report exports are a different thing and can never be restored.
 
-Current versions: envelope `formatVersion` **1**, data `schemaVersion` **2** (Phase 2). Data
-version 1 files (Phase 1) are still accepted and upgraded in memory on import.
+Current versions: envelope `formatVersion` **1**, data `schemaVersion` **3** (Phase 3). Data
+version 1 (Phase 1) and 2 (Phase 2) files are still accepted and upgraded in memory on import.
 
 ## Envelope
 
@@ -15,8 +15,8 @@ version 1 files (Phase 1) are still accepted and upgraded in memory on import.
 {
   "format": "fms.workspace-backup", // identifies the file type
   "formatVersion": 1, // envelope version
-  "schemaVersion": 2, // database schema version of the data section
-  "app": { "name": "fms", "version": "0.2.0" },
+  "schemaVersion": 3, // database schema version of the data section
+  "app": { "name": "fms", "version": "0.3.0" },
   "exportedAt": "2026-03-10T09:00:00.000Z", // UTC
   "workspace": { "id": "<uuid>", "name": "…", "kind": "business" | "demo" },
   "counts": { "workspace": 1, "auditEvents": 12, "assetCategories": 6, "assets": 3, "…": 0 },
@@ -28,6 +28,9 @@ version 1 files (Phase 1) are still accepted and upgraded in memory on import.
     "assets": [],
     "depreciationSchedules": [/* every version, including superseded ones */],
     "depreciationLines": [/* every stored line of every version */],
+    "expenseCategories": [],
+    "revenueEntries": [/* including voided entries, with their reason */],
+    "expenses": [/* including voided expenses, with their reason */],
   },
 }
 ```
@@ -36,6 +39,7 @@ version 1 files (Phase 1) are still accepted and upgraded in memory on import.
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | 1            | `workspace` (no `depreciationClosedThrough`), `auditEvents`                                                                     |
 | 2            | v1 tables plus `workspace.depreciationClosedThrough`, `assetCategories`, `assets`, `depreciationSchedules`, `depreciationLines` |
+| 3            | v2 tables plus `expenseCategories`, `revenueEntries`, `expenses`                                                                |
 
 - `checksum.value` is SHA-256 over `JSON.stringify(data)`. File whitespace does not matter.
   The checksum detects truncation and accidental corruption. It is **not** a signature, and it
@@ -58,7 +62,8 @@ version 1 files (Phase 1) are still accepted and upgraded in memory on import.
    cost, useful life of 1–600 months, and so on.
 8. Header counts match exactly the tables present.
 9. Older data versions are upgraded in memory. The v1 → v2 upgrade adds
-   `depreciationClosedThrough: null` and the default asset categories.
+   `depreciationClosedThrough: null` and the default asset categories. The v2 → v3 upgrade adds
+   the default expense categories and empty revenue/expense tables. A v1 file goes through both.
 10. Consistency:
     - exactly one workspace, and the header matches it;
     - every record belongs to that workspace;
@@ -67,7 +72,11 @@ version 1 files (Phase 1) are still accepted and upgraded in memory on import.
     - asset codes are unique, ignoring case;
     - every schedule's asset exists, and schedule versions are unique per asset;
     - each asset matches its latest schedule's assumptions;
-    - every line belongs to a schedule of the same asset.
+    - every line belongs to a schedule of the same asset;
+    - every revenue entry and expense that names an asset refers to an existing asset;
+    - every expense's category exists;
+    - (schema) an expense names an asset exactly when it is a direct asset expense; amounts are
+      positive GHS.
 
 Only after all checks pass does the user see a preview. Restoring requires a separate explicit
 confirmation.
@@ -86,5 +95,6 @@ confirmation.
 - Adding a table or field: bump the database `schemaVersion`, add a Dexie migration, freeze the
   previous data schema in `src/backup/format.ts`, and add an upgrade step for older backups, with
   tests (`src/backup/backup-versions.test.ts`, `src/persistence/dexie/migrations.test.ts`).
+  Per-version data schemas live in `BACKUP_DATA_SCHEMAS`; upgrades chain in `upgradeToCurrent`.
 - Changing the envelope: bump `formatVersion`.
 - Older backups must stay restorable. Newer backups are refused with "update the app".

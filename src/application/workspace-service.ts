@@ -1,5 +1,6 @@
 import { defaultAssetCategories } from '@/domain/assets';
 import { diffFields, type AuditChange, type AuditEvent } from '@/domain/audit';
+import { defaultExpenseCategories } from '@/domain/transactions';
 import {
   DEMO_WORKSPACE_NAME,
   newWorkspace,
@@ -10,7 +11,7 @@ import {
   type WorkspaceSettings,
 } from '@/domain/workspace';
 import type { NewAuditEvent, PageRequest, Repositories } from '@/repositories';
-import { seedDemoAssets } from './demo-seed';
+import { seedDemoWorkspace } from './demo-seed';
 import type { ServiceDependencies } from './dependencies';
 import { ConfirmationMismatchError, NoWorkspaceError, WorkspaceAlreadyExistsError } from './errors';
 
@@ -69,8 +70,16 @@ export function createWorkspaceService(deps: ServiceDependencies) {
       );
       const categories = defaultAssetCategories(workspace.id, at, newId);
       for (const category of categories) await repos.categories.put(category);
+      const expenseCategories = defaultExpenseCategories(workspace.id, at, newId);
+      for (const category of expenseCategories) await repos.expenseCategories.put(category);
       if (kind === 'demo') {
-        await seedDemoAssets(repos, { newId, actor, at }, workspace, categories);
+        await seedDemoWorkspace(
+          repos,
+          { newId, actor, at },
+          workspace,
+          categories,
+          expenseCategories,
+        );
       }
       return workspace;
     });

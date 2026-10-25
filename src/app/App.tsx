@@ -12,7 +12,13 @@ import { AuditPage } from '@/ui/pages/AuditPage';
 import { BackupRestorePage } from '@/ui/pages/BackupRestorePage';
 import { DashboardPage } from '@/ui/pages/DashboardPage';
 import { DepreciationPage } from '@/ui/pages/DepreciationPage';
+import { ExpenseDetailPage } from '@/ui/pages/ExpenseDetailPage';
+import { EditExpensePage, NewExpensePage } from '@/ui/pages/ExpenseFormPage';
+import { ExpensesPage } from '@/ui/pages/ExpensesPage';
 import { OnboardingPage } from '@/ui/pages/OnboardingPage';
+import { RevenueDetailPage } from '@/ui/pages/RevenueDetailPage';
+import { EditRevenuePage, NewRevenuePage } from '@/ui/pages/RevenueFormPage';
+import { RevenuePage } from '@/ui/pages/RevenuePage';
 import { ReviseDepreciationPage } from '@/ui/pages/ReviseDepreciationPage';
 import { SettingsPage } from '@/ui/pages/SettingsPage';
 import { createQueryClient, useWorkspace } from '@/ui/queries';
@@ -40,6 +46,14 @@ function WorkspaceRoutes({ workspace }: { workspace: Workspace }) {
         <Route path="assets/:id/edit" element={<EditAssetPage />} />
         <Route path="assets/:id/revise" element={<ReviseDepreciationPage />} />
         <Route path="depreciation" element={<DepreciationPage workspace={workspace} />} />
+        <Route path="revenue" element={<RevenuePage />} />
+        <Route path="revenue/new" element={<NewRevenuePage workspace={workspace} />} />
+        <Route path="revenue/:id" element={<RevenueDetailPage workspace={workspace} />} />
+        <Route path="revenue/:id/edit" element={<EditRevenuePage workspace={workspace} />} />
+        <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="expenses/new" element={<NewExpensePage workspace={workspace} />} />
+        <Route path="expenses/:id" element={<ExpenseDetailPage workspace={workspace} />} />
+        <Route path="expenses/:id/edit" element={<EditExpensePage workspace={workspace} />} />
         <Route path="backup" element={<BackupRestorePage workspace={workspace} />} />
         <Route path="settings" element={<SettingsPage workspace={workspace} />} />
         <Route path="audit" element={<AuditPage workspace={workspace} />} />

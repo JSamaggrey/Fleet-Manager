@@ -1,16 +1,7 @@
 import { z } from 'zod';
-import { idSchema, isoTimestampSchema } from '../common/schemas';
+import { idSchema, isoTimestampSchema, optionalText } from '../common/schemas';
 import { depreciationAssumptionsSchema } from '../depreciation';
 import { calendarDateSchema } from '../periods';
-
-/** Optional free text: trimmed, stored as null when empty. */
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, `Use at most ${max} characters.`)
-    .nullable()
-    .transform((v) => (v === '' ? null : v));
 
 export const assetCategorySchema = z.strictObject({
   id: idSchema,

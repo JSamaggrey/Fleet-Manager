@@ -2,6 +2,7 @@ import type { Table, Transaction } from 'dexie';
 import type { Asset, AssetCategory } from '@/domain/assets';
 import type { AuditEvent } from '@/domain/audit';
 import type { DepreciationLine, DepreciationSchedule } from '@/domain/depreciation';
+import type { Expense, ExpenseCategory, RevenueEntry } from '@/domain/transactions';
 import type { Workspace } from '@/domain/workspace';
 import {
   TABLE_NAMES,
@@ -32,6 +33,9 @@ function repositoriesFor(tx: Transaction): Repositories {
   const assets = tx.table<Asset, string>('assets');
   const schedules = tx.table<DepreciationSchedule, string>('depreciationSchedules');
   const lines = tx.table<DepreciationLine, string>('depreciationLines');
+  const expenseCategories = tx.table<ExpenseCategory, string>('expenseCategories');
+  const revenueEntries = tx.table<RevenueEntry, string>('revenueEntries');
+  const expenses = tx.table<Expense, string>('expenses');
 
   return {
     workspace: {
@@ -80,6 +84,27 @@ function repositoriesFor(tx: Transaction): Repositories {
       listLinesForPeriod: (period) => lines.where({ period }).toArray(),
       addLines: async (rows) => {
         await lines.bulkAdd([...rows]);
+      },
+    },
+    expenseCategories: {
+      list: () => expenseCategories.toArray(),
+      get: (id) => expenseCategories.get(id),
+      put: async (category) => {
+        await expenseCategories.put(category);
+      },
+    },
+    revenue: {
+      list: () => revenueEntries.toArray(),
+      get: (id) => revenueEntries.get(id),
+      put: async (entry) => {
+        await revenueEntries.put(entry);
+      },
+    },
+    expenses: {
+      list: () => expenses.toArray(),
+      get: (id) => expenses.get(id),
+      put: async (expense) => {
+        await expenses.put(expense);
       },
     },
   };

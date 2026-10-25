@@ -2,6 +2,7 @@ import type { Asset, AssetCategory } from '@/domain/assets';
 import type { AuditEvent } from '@/domain/audit';
 import type { DepreciationLine, DepreciationSchedule } from '@/domain/depreciation';
 import type { YearMonth } from '@/domain/periods';
+import type { Expense, ExpenseCategory, RevenueEntry } from '@/domain/transactions';
 import type { Workspace } from '@/domain/workspace';
 
 /**
@@ -56,12 +57,35 @@ export interface DepreciationRepository {
   addLines(lines: readonly DepreciationLine[]): Promise<void>;
 }
 
+export interface ExpenseCategoryRepository {
+  list(): Promise<ExpenseCategory[]>;
+  get(id: string): Promise<ExpenseCategory | undefined>;
+  put(category: ExpenseCategory): Promise<void>;
+}
+
+/** Records are never deleted; voiding is an update. */
+export interface RevenueRepository {
+  list(): Promise<RevenueEntry[]>;
+  get(id: string): Promise<RevenueEntry | undefined>;
+  put(entry: RevenueEntry): Promise<void>;
+}
+
+/** Records are never deleted; voiding is an update. */
+export interface ExpenseRepository {
+  list(): Promise<Expense[]>;
+  get(id: string): Promise<Expense | undefined>;
+  put(expense: Expense): Promise<void>;
+}
+
 export interface Repositories {
   workspace: WorkspaceRepository;
   audit: AuditRepository;
   categories: AssetCategoryRepository;
   assets: AssetRepository;
   depreciation: DepreciationRepository;
+  expenseCategories: ExpenseCategoryRepository;
+  revenue: RevenueRepository;
+  expenses: ExpenseRepository;
 }
 
 /** Every persisted table. Adding an entity means adding it here, which the backup format follows. */
@@ -72,6 +96,9 @@ export interface WorkspaceTables {
   assets: Asset[];
   depreciationSchedules: DepreciationSchedule[];
   depreciationLines: DepreciationLine[];
+  expenseCategories: ExpenseCategory[];
+  revenueEntries: RevenueEntry[];
+  expenses: Expense[];
 }
 
 export type TableName = keyof WorkspaceTables;
@@ -83,6 +110,9 @@ export const TABLE_NAMES = [
   'assets',
   'depreciationSchedules',
   'depreciationLines',
+  'expenseCategories',
+  'revenueEntries',
+  'expenses',
 ] as const satisfies readonly TableName[];
 
 export function emptyTables(): WorkspaceTables {
@@ -93,6 +123,9 @@ export function emptyTables(): WorkspaceTables {
     assets: [],
     depreciationSchedules: [],
     depreciationLines: [],
+    expenseCategories: [],
+    revenueEntries: [],
+    expenses: [],
   };
 }
 

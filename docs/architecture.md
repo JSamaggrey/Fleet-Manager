@@ -54,6 +54,17 @@ writes such as demo seeding. Inside `store.write()`, still await only repository
 - `workspace.depreciationClosedThrough` marks closed months. Revisions start at the first open
   month (`planRevision`).
 
+### Revenue and expenses
+
+- `revenueEntries` and `expenses` are never deleted. A void is an update that sets
+  `void: { voidedAt, reason }`; `summarizeActivity` (domain) excludes voided records.
+- Every expense lands in exactly one bucket (`expenseBucket`): capital first, then direct /
+  shared / unassigned. This is what prevents double counting in reports.
+- Services expose `insertRevenue` / `insertExpense` so other writes (demo seeding) can add records
+  inside the same transaction, as with `insertAssetWithSchedule`.
+- Lists are loaded whole and filtered in the UI. That is fine at pilot volumes (thousands of
+  records); add indexed range queries (`serviceDate`, `expenseDate` are indexed) if it gets slow.
+
 ### UI data flow
 
 TanStack Query wraps the application services with `networkMode: 'always'`, so local reads and

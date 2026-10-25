@@ -5,6 +5,8 @@ import type {
   DepreciationAssumptionsInput,
 } from '@/application/asset-records';
 import type { CategoryInput } from '@/application/asset-service';
+import type { ExpenseCategoryInput, ExpenseInput } from '@/application/expense-service';
+import type { RevenueInput } from '@/application/revenue-service';
 import type { WorkspaceUpdate } from '@/application/workspace-service';
 import type { AssetStatus } from '@/domain/assets';
 import type { ValidatedBackup } from '@/backup/backup-service';
@@ -201,6 +203,120 @@ export function useCreateCategory() {
   const { invalidate } = useRefresh();
   return useMutation({
     mutationFn: (input: CategoryInput) => assets.createCategory(input),
+    onSuccess: invalidate,
+  });
+}
+
+// ---- Revenue and expenses ---------------------------------------------------------------------
+
+export const activityKeys = {
+  revenue: ['revenue'] as const,
+  revenueEntry: (id: string) => ['revenue', id] as const,
+  expenses: ['expenses'] as const,
+  expense: (id: string) => ['expenses', id] as const,
+  expenseCategories: ['expense-categories'] as const,
+};
+
+export function useRevenueList() {
+  const { revenue } = useServices();
+  return useQuery({ queryKey: activityKeys.revenue, queryFn: () => revenue.listRevenue() });
+}
+
+export function useRevenueEntry(id: string) {
+  const { revenue } = useServices();
+  return useQuery({
+    queryKey: activityKeys.revenueEntry(id),
+    queryFn: () => revenue.getRevenue(id),
+  });
+}
+
+export function useRecordRevenue() {
+  const { revenue } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: RevenueInput) => revenue.recordRevenue(input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateRevenue(id: string) {
+  const { revenue } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: RevenueInput) => revenue.updateRevenue(id, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useVoidRevenue(id: string) {
+  const { revenue } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (reason: string) => revenue.voidRevenue(id, reason),
+    onSuccess: invalidate,
+  });
+}
+
+export function useExpenseList() {
+  const { expenses } = useServices();
+  return useQuery({ queryKey: activityKeys.expenses, queryFn: () => expenses.listExpenses() });
+}
+
+export function useExpense(id: string) {
+  const { expenses } = useServices();
+  return useQuery({ queryKey: activityKeys.expense(id), queryFn: () => expenses.getExpense(id) });
+}
+
+export function useRecordExpense() {
+  const { expenses } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: ExpenseInput) => expenses.recordExpense(input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateExpense(id: string) {
+  const { expenses } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: ExpenseInput) => expenses.updateExpense(id, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useVoidExpense(id: string) {
+  const { expenses } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (reason: string) => expenses.voidExpense(id, reason),
+    onSuccess: invalidate,
+  });
+}
+
+export function useExpenseCategories() {
+  const { expenses } = useServices();
+  return useQuery({
+    queryKey: activityKeys.expenseCategories,
+    queryFn: () => expenses.listExpenseCategories(),
+  });
+}
+
+export function useCreateExpenseCategory() {
+  const { expenses } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (name: string) => expenses.createExpenseCategory(name),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateExpenseCategory() {
+  const { expenses } = useServices();
+  const { invalidate } = useRefresh();
+  return useMutation({
+    mutationFn: (input: { id: string } & ExpenseCategoryInput) =>
+      expenses.updateExpenseCategory(input.id, input),
     onSuccess: invalidate,
   });
 }

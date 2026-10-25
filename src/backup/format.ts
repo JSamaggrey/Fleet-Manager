@@ -3,6 +3,7 @@ import { assetCategorySchema, assetSchema } from '@/domain/assets';
 import { auditEventSchema } from '@/domain/audit';
 import { idSchema, isoTimestampSchema } from '@/domain/common/schemas';
 import { depreciationLineSchema, depreciationScheduleSchema } from '@/domain/depreciation';
+import { expenseCategorySchema, expenseSchema, revenueEntrySchema } from '@/domain/transactions';
 import { workspaceKindSchema, workspaceSchema } from '@/domain/workspace';
 
 /**
@@ -15,7 +16,8 @@ export const BACKUP_FILE_EXTENSION = '.fmsbackup.json';
 /** Larger files are rejected before being read into memory. */
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 /** Data (database schema) versions this app can restore. Older ones are upgraded on import. */
-export const SUPPORTED_SCHEMA_VERSIONS = [1, 2] as const;
+export const SUPPORTED_SCHEMA_VERSIONS = [1, 2, 3] as const;
+export type SupportedSchemaVersion = (typeof SUPPORTED_SCHEMA_VERSIONS)[number];
 
 /** First pass: identifies the file and its versions without trusting the data section. */
 export const backupHeaderSchema = z.object({
@@ -59,5 +61,19 @@ export const backupDataSchemaV2 = z.strictObject({
   depreciationLines: z.array(depreciationLineSchema),
 });
 
+/** Data version 3 (Phase 3): adds expense categories, revenue entries, and expenses. */
+export const backupDataSchemaV3 = backupDataSchemaV2.extend({
+  expenseCategories: z.array(expenseCategorySchema),
+  revenueEntries: z.array(revenueEntrySchema),
+  expenses: z.array(expenseSchema),
+});
+
+export const BACKUP_DATA_SCHEMAS = {
+  1: backupDataSchemaV1,
+  2: backupDataSchemaV2,
+  3: backupDataSchemaV3,
+} as const;
+
 export type BackupEnvelope = z.infer<typeof backupEnvelopeSchema>;
 export type BackupDataV1 = z.infer<typeof backupDataSchemaV1>;
+export type BackupDataV2 = z.infer<typeof backupDataSchemaV2>;

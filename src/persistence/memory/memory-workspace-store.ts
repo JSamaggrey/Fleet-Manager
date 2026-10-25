@@ -17,7 +17,7 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
   #state: WorkspaceTables = emptyTables();
   #queue: Promise<unknown> = Promise.resolve();
 
-  constructor(schemaVersion = 2) {
+  constructor(schemaVersion = 3) {
     this.schemaVersion = schemaVersion;
   }
 
@@ -160,6 +160,30 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
         addLines: async (lines) => {
           assertWritable();
           for (const line of lines) insert(tables.depreciationLines, line, 'depreciation line');
+        },
+      },
+      expenseCategories: {
+        list: async () => clone(tables.expenseCategories),
+        get: async (id) => clone(tables.expenseCategories.find((c) => c.id === id)),
+        put: async (category) => {
+          assertWritable();
+          upsert(tables.expenseCategories, category);
+        },
+      },
+      revenue: {
+        list: async () => clone(tables.revenueEntries),
+        get: async (id) => clone(tables.revenueEntries.find((r) => r.id === id)),
+        put: async (entry) => {
+          assertWritable();
+          upsert(tables.revenueEntries, entry);
+        },
+      },
+      expenses: {
+        list: async () => clone(tables.expenses),
+        get: async (id) => clone(tables.expenses.find((e) => e.id === id)),
+        put: async (expense) => {
+          assertWritable();
+          upsert(tables.expenses, expense);
         },
       },
     };

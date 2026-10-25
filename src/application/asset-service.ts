@@ -34,11 +34,9 @@ import {
   type RecordContext,
 } from './asset-records';
 import type { ServiceDependencies } from './dependencies';
-import { ApplicationError } from './errors';
+import { ApplicationError, NotFoundError } from './errors';
 
-export class NotFoundError extends ApplicationError {
-  override name = 'NotFoundError';
-}
+export { NotFoundError };
 
 export class RevisionRejectedError extends ApplicationError {
   override name = 'RevisionRejectedError';

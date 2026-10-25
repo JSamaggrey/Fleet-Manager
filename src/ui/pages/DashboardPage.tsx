@@ -1,13 +1,14 @@
 import { Link } from 'react-router';
 import { formatMoney, sum } from '@/domain/money';
 import { currentYearMonth, formatYearMonth } from '@/domain/periods';
+import { isDateInRange, summarizeActivity } from '@/domain/transactions';
 import { backupStatus, type Workspace } from '@/domain/workspace';
 import { Alert } from '../components/Alert';
 import { FOCUS_RING } from '../components/Button';
 import { Card, DescriptionList, PageHeader } from '../components/Card';
 import { useStorageStatus } from '../device-status';
 import { formatDateTime, formatDaysAgo } from '../format';
-import { useAssets, usePeriodReport } from '../queries';
+import { useAssets, useExpenseList, usePeriodReport, useRevenueList } from '../queries';
 import { useServices } from '../services';
 
 export function DashboardPage({ workspace }: { workspace: Workspace }) {
@@ -20,6 +21,7 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
     <>
       <PageHeader title="Dashboard" description="Overview of this device’s local workspace." />
       <AssetsSummary workspace={workspace} />
+      <ActivitySummary workspace={workspace} />
       <div className="grid gap-6 md:grid-cols-2">
         <Card title="Workspace">
           <DescriptionList
@@ -68,14 +70,74 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
       </div>
 
       <div className="mt-6">
-        <Alert tone="info" title="What’s next">
+        <Alert tone="info" title="Reports">
           <p>
-            Trip revenue, expenses and management profit reports will appear here as they are built.
-            Figures are always for this device’s workspace only.
+            Management profit and margin reports by asset and period are not built yet. Figures are
+            always for this device’s workspace only.
           </p>
         </Alert>
       </div>
     </>
+  );
+}
+
+function ActivitySummary({ workspace }: { workspace: Workspace }) {
+  const { now } = useServices();
+  const period = currentYearMonth(now(), workspace.settings.timeZone);
+  const revenue = useRevenueList();
+  const expenses = useExpenseList();
+  if (!revenue.data || !expenses.data) return null;
+  const inMonth = { from: `${period}-01`, to: `${period}-31` };
+  const month = summarizeActivity(
+    revenue.data.map((r) => r.entry).filter((e) => isDateInRange(e.serviceDate, inMonth)),
+    expenses.data.map((r) => r.expense).filter((e) => isDateInRange(e.expenseDate, inMonth)),
+    'GHS',
+  );
+  // Exceptions are not limited to this month.
+  const all = summarizeActivity(
+    revenue.data.map((r) => r.entry),
+    expenses.data.map((r) => r.expense),
+    'GHS',
+  );
+  const label = formatYearMonth(period);
+  return (
+    <section aria-label="Revenue and expenses this month" className="mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label={`Revenue in ${label}`} value={formatMoney(month.revenue)} />
+        <Stat label={`Direct expenses in ${label}`} value={formatMoney(month.directExpenses)} />
+        <Stat label={`Shared expenses in ${label}`} value={formatMoney(month.sharedExpenses)} />
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-slate-600">Needs attention (all dates)</p>
+          <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
+            {all.unassignedCount} unassigned
+          </p>
+          {all.unassignedCount > 0 && (
+            <p className="mt-1 flex gap-3 text-sm">
+              <Link to="/revenue?asset=unassigned" className={`underline ${FOCUS_RING}`}>
+                Revenue
+              </Link>
+              <Link to="/expenses?asset=unassigned" className={`underline ${FOCUS_RING}`}>
+                Expenses
+              </Link>
+            </p>
+          )}
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-slate-600">
+        GHS, service-date / incurred basis; voided records excluded. Shared expenses are not
+        allocated to assets. Capital items ({formatMoney(month.capitalItems)} this month) are not
+        operating expenses.
+      </p>
+    </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">{value}</p>
+    </div>
   );
 }
 

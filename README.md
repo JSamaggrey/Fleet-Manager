@@ -3,11 +3,12 @@
 Management reporting for transport vehicles and other business assets. It runs on each device
 independently with no internet, LAN, or server after installation. Reporting currency is GHS.
 
-> **Status: Phase 2 (assets and depreciation).** Installable offline app, local workspace,
+> **Status: Phase 3 (revenue and expenses).** Installable offline app, local workspace,
 > settings, audit log, full backup/restore, asset register with categories, straight-line
-> depreciation schedules, revisions with preview, and period close. Revenue, expenses and
-> profit reports are not built yet. See `AGENT.md` for the specification, `PROGRESS.md` for
-> status, and `docs/` for decisions.
+> depreciation schedules with revisions and period close, trip/job revenue, direct and shared
+> expenses, capital items, corrections and voids. Profit/margin reports and CSV export are not
+> built yet. See `AGENT.md` for the specification, `PROGRESS.md` for status, and `docs/` for
+> decisions.
 
 **Each device has its own workspace. Nothing syncs between devices.** Moving data between devices
 uses an explicit full backup and restore. See [Backing up and restoring](docs/backup-and-restore.md).

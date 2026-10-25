@@ -5,6 +5,7 @@ import type { AssetDetail } from '@/application/asset-service';
 import { DEPRECIATION_CONVENTION } from '@/domain/depreciation';
 import { formatMoney, subtract } from '@/domain/money';
 import { formatYearMonth } from '@/domain/periods';
+import { summarizeActivity } from '@/domain/transactions';
 import type { Workspace } from '@/domain/workspace';
 import { Alert } from '../components/Alert';
 import { Button, FOCUS_RING } from '../components/Button';
@@ -13,7 +14,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { ScheduleTable } from '../assets/ScheduleTable';
 import { formatDateTime } from '../format';
-import { useAsset, useSetAssetStatus } from '../queries';
+import { useAsset, useExpenseList, useRevenueList, useSetAssetStatus } from '../queries';
 
 const linkButton = `inline-flex min-h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-slate-800 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 ${FOCUS_RING}`;
 
@@ -129,6 +130,10 @@ function AssetDetailView({ detail, workspace }: { detail: AssetDetail; workspace
         </Card>
       </div>
 
+      <div className="mt-6">
+        <AssetActivityCard assetId={asset.id} />
+      </div>
+
       <section className="mt-6" aria-labelledby="schedule-heading">
         <h2 id="schedule-heading" className="mb-2 text-base font-semibold text-slate-900">
           Monthly schedule
@@ -178,6 +183,56 @@ function AssetDetailView({ detail, workspace }: { detail: AssetDetail; workspace
         </Card>
       </div>
     </>
+  );
+}
+
+/** All-time recorded activity for one asset. Profit and margin come with the reports. */
+function AssetActivityCard({ assetId }: { assetId: string }) {
+  const revenue = useRevenueList();
+  const expenses = useExpenseList();
+  const totals =
+    revenue.data && expenses.data
+      ? summarizeActivity(
+          revenue.data.filter((r) => r.entry.assetId === assetId).map((r) => r.entry),
+          expenses.data.filter((r) => r.expense.assetId === assetId).map((r) => r.expense),
+          'GHS',
+        )
+      : null;
+  return (
+    <Card
+      title="Revenue and expenses (all dates)"
+      description="Recorded against this asset; voided records excluded. Shared fleet costs are not allocated to assets."
+    >
+      {totals && (
+        <DescriptionList
+          items={[
+            ['Revenue', formatMoney(totals.revenue)],
+            ['Direct operating expenses', formatMoney(totals.directExpenses)],
+            ['Capital items (not operating)', formatMoney(totals.capitalItems)],
+          ]}
+        />
+      )}
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+        <Link to={`/revenue?asset=${assetId}`} className={`text-blue-800 underline ${FOCUS_RING}`}>
+          View revenue
+        </Link>
+        <Link to={`/expenses?asset=${assetId}`} className={`text-blue-800 underline ${FOCUS_RING}`}>
+          View expenses
+        </Link>
+        <Link
+          to={`/revenue/new?asset=${assetId}`}
+          className={`text-blue-800 underline ${FOCUS_RING}`}
+        >
+          Record revenue
+        </Link>
+        <Link
+          to={`/expenses/new?asset=${assetId}`}
+          className={`text-blue-800 underline ${FOCUS_RING}`}
+        >
+          Record expense
+        </Link>
+      </div>
+    </Card>
   );
 }
 

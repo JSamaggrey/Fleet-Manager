@@ -20,7 +20,7 @@ import { toDecimalString } from '@/domain/money';
 import { addMonths, type YearMonth } from '@/domain/periods';
 import type { Workspace } from '@/domain/workspace';
 import type { NewAuditEvent, Repositories } from '@/repositories';
-import { ApplicationError, NoWorkspaceError } from './errors';
+import { NoWorkspaceError, ValidationError } from './errors';
 
 export type AssetDetailsInput = z.input<typeof assetDetailsSchema>;
 export type DepreciationAssumptionsInput = z.input<typeof depreciationAssumptionsSchema>;
@@ -36,13 +36,8 @@ export interface RecordContext {
   at: Date;
 }
 
-export class AssetValidationError extends ApplicationError {
+export class AssetValidationError extends ValidationError {
   override name = 'AssetValidationError';
-  readonly field: string | null;
-  constructor(message: string, field: string | null = null) {
-    super(message);
-    this.field = field;
-  }
 }
 
 export async function requireWorkspace(repos: Repositories): Promise<Workspace> {
