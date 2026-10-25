@@ -4,9 +4,14 @@ The app is a set of static files (`dist/` after `pnpm build`). There is no serve
 database server and no login service. A device needs to reach the files **once** to install the
 app. After that it runs offline.
 
-> **Decision still open:** where the files are hosted. The options below all work; choose one
-> before the pilot. Every device must use **the same address**, because the browser keeps each
-> address's data separately.
+> **Chosen host: GitHub Pages** at **https://jsamaggrey.github.io/Fleet-Manager/**, from the
+> public repo `JSamaggrey/Fleet-Manager`. `.github/workflows/deploy.yml` runs every check and all
+> end-to-end tests, then publishes `dist/` on each push to `main`. Every device must use **this
+> exact address**, because the browser keeps each address's data separately.
+>
+> **Shared origin caution:** every GitHub Pages site under `jsamaggrey.github.io` shares one
+> browser storage area. Do not publish other Pages sites under this username, or move this app
+> to its own domain first (a later move means every device backs up and restores).
 
 ## Requirements for any host
 

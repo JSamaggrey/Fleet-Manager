@@ -5,21 +5,27 @@ gotchas** that aren't obvious from the code. Keep it current at the end of each 
 
 ## Status
 
-| Phase                                                                      | State | Commit                          |
-| -------------------------------------------------------------------------- | ----- | ------------------------------- |
-| 0 Scaffold, architecture decision, money domain                            | Done  | `54cf965`                       |
-| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done  | `1bdc92c`                       |
-| 2 Assets, categories, depreciation schedules, revisions, period close      | Done  | `e0203be`                       |
-| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done  | `91179ee`                       |
-| 4 Reports, dashboard, period filters, CSV export, exceptions               | Done  | `5e0fc18`                       |
-| 5 Tasks, accessibility, release docs (real-device QA still manual)         | Done  | see `git log --grep "Phase 5:"` |
+| Phase                                                                      | State | Commit    |
+| -------------------------------------------------------------------------- | ----- | --------- |
+| 0 Scaffold, architecture decision, money domain                            | Done  | `5c01a5e` |
+| 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done  | `0126844` |
+| 2 Assets, categories, depreciation schedules, revisions, period close      | Done  | `c163fd0` |
+| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done  | `af273e9` |
+| 4 Reports, dashboard, period filters, CSV export, exceptions               | Done  | `c1e91eb` |
+| 5 Tasks, accessibility, release docs (real-device QA still manual)         | Done  | `8942092` |
 
 Last verified (Phase 5, app v0.5.0): `pnpm check` green (274 unit/component tests).
 `pnpm test:e2e` 33/33 on desktop-chromium, tablet-webkit (iPad) and tablet-android (Galaxy Tab S9), including the axe WCAG 2.1 AA scan
 of every page. Main JS chunk is about 491 KB (157 KB gzipped).
 
-**What's next:** run `docs/device-qa.md` on a real iPad and Windows PC; decide hosting
-(`docs/deployment.md`); get answers to the open product questions below. After that, follow
+**Hosting:** GitHub Pages at https://jsamaggrey.github.io/Fleet-Manager/ from the public repo
+`JSamaggrey/Fleet-Manager`. Pushing to `main` runs `.github/workflows/deploy.yml` (pnpm check, all
+Playwright profiles, then deploy). Commits use the noreply email
+`121378447+JSamaggrey@users.noreply.github.com`, set in the repo-local git config; never commit with
+the personal address. `gh` is at `/c/Program Files/GitHub CLI/gh.exe` (Git Bash path) and is logged in as JSamaggrey.
+
+**What's next:** run `docs/device-qa.md` on a real iPad, Android tablet and Windows PC using the
+hosted address; get answers to the open product questions below. After that, follow
 `docs/release-checklist.md` for the pilot release. Anything further (stored tasks, charts,
 disposal, period lock for revenue/expenses, backend/sync) needs a product decision first.
 
@@ -169,8 +175,8 @@ e2e/               smoke, offline, backup-restore, assets, transactions, reports
 
 ## Open items / known limitations
 
-- How devices receive the app is undecided. The options are in `docs/deployment.md`; it needs
-  HTTPS.
+- The app is hosted on GitHub Pages; see `docs/deployment.md`. All Pages sites under
+  `jsamaggrey.github.io` share browser storage, so publish no other Pages sites there.
 - Not yet verified on a real iPad or Windows device. Run `docs/device-qa.md` and record the
   results in ADR 0001.
 - Backups are unencrypted. The checksum catches corruption, not authorship.
