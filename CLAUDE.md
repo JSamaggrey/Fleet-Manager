@@ -2,6 +2,7 @@
 
 ## Start here
 Read `AGENT.md` before making changes. It is the authoritative product specification and acceptance checklist.
+Then read `PROGRESS.md` for current status, decisions in force, environment notes, and the next phase; update it at the end of each phase.
 
 ## Confirmed product decisions
 - Initial application must work on many devices **independently**, without internet, LAN, or always-on server.
