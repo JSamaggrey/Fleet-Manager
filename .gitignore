@@ -18,6 +18,7 @@ playwright/.cache/
 *.fmsbackup.json
 backups/
 exports/
+*.csv
 
 # Editor / OS
 .vscode/*
