@@ -121,6 +121,41 @@ export function multiply(
   return money(toSafeInteger(product), value.currency);
 }
 
+/**
+ * value × numerator / denominator, rounded once to whole minor units (e.g. a month's charge for
+ * 7 of its 30 days). Integers in, so the ratio is exact before the single rounding step.
+ */
+export function prorate(
+  value: Money,
+  numerator: number,
+  denominator: number,
+  rounding: RoundingMode = DEFAULT_ROUNDING,
+): Money {
+  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator <= 0) {
+    throw new MoneyError('Pro-rating needs whole numbers and a positive denominator.');
+  }
+  if (numerator === denominator) return value;
+  const result = Decimal(String(value.amountMinor))
+    .times(String(numerator))
+    .div(String(denominator))
+    .round(0, toBigRoundingMode(rounding));
+  return money(toSafeInteger(result), value.currency);
+}
+
+/**
+ * part / whole as a percentage string with one decimal (e.g. "23.5"), or null when whole ≤ 0.
+ * Used for margin, which is undefined without positive revenue.
+ */
+export function percentOf(part: Money, whole: Money): string | null {
+  assertSameCurrency(part, whole);
+  if (whole.amountMinor <= 0) return null;
+  return Decimal(String(part.amountMinor))
+    .times('100')
+    .div(String(whole.amountMinor))
+    .round(1, toBigRoundingMode(DEFAULT_ROUNDING))
+    .toFixed(1);
+}
+
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
   assertSameCurrency(a, b);
   return a.amountMinor < b.amountMinor ? -1 : a.amountMinor > b.amountMinor ? 1 : 0;

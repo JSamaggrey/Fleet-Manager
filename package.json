@@ -1,7 +1,7 @@
 {
   "name": "fms",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Offline-first fleet and asset management (management reporting, GHS).",
   "type": "module",
   "packageManager": "pnpm@12.15.0",

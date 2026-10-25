@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BackupFile } from '@/backup/backup-service';
+import type { SavedFile } from '@/ui/backup/download';
 import { MemoryWorkspaceStore } from '@/persistence/memory/memory-workspace-store';
 import { sequentialIds } from '@/test/fixtures';
 import { createQueryClient } from '@/ui/queries';
@@ -11,7 +11,7 @@ import { createServices } from './create-services';
 const NOW = new Date('2026-03-10T09:00:00.000Z');
 
 function renderApp(store = new MemoryWorkspaceStore(), idPrefix = 1, applyAccept = true) {
-  const saved: BackupFile[] = [];
+  const saved: SavedFile[] = [];
   const services = createServices(store, {
     newId: sequentialIds(idPrefix),
     now: () => NOW,

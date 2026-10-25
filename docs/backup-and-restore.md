@@ -52,3 +52,10 @@ then stop using A for that workspace.
   Browsers may decline. Back up regularly either way.
 - Always use the same address for the app. A different address (domain, port, or `http` vs
   `https`) has separate, empty storage.
+
+## Report exports (CSV) are not backups
+
+The Reports page can save CSV files (asset and fleet profit, revenue detail, expense detail) for
+spreadsheets. They hold only the rows of one report, so they **cannot** be restored, and the
+restore screen rejects them. Use **Download full backup** to protect or move a workspace. CSV
+files can still contain sensitive business information, so store and share them with care.

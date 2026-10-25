@@ -1,6 +1,7 @@
 import {
   Banknote,
   Car,
+  ChartColumn,
   DatabaseBackup,
   History,
   LayoutDashboard,
@@ -8,13 +9,15 @@ import {
   Receipt,
   Settings,
   TrendingDown,
+  TriangleAlert,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { backupStatus, type Workspace } from '@/domain/workspace';
 import { Alert } from '../components/Alert';
 import { Badge } from '../components/Card';
+import { LoadingState } from '../components/StateViews';
 import { FOCUS_RING } from '../components/Button';
 import { useServices } from '../services';
 import { StatusIndicators } from './StatusIndicators';
@@ -25,6 +28,8 @@ const NAV_ITEMS = [
   { to: '/revenue', label: 'Revenue', Icon: Banknote, end: false },
   { to: '/expenses', label: 'Expenses', Icon: Receipt, end: false },
   { to: '/depreciation', label: 'Depreciation', Icon: TrendingDown, end: false },
+  { to: '/reports', label: 'Reports', Icon: ChartColumn, end: false },
+  { to: '/exceptions', label: 'Exceptions', Icon: TriangleAlert, end: false },
   { to: '/backup', label: 'Backup & Restore', Icon: DatabaseBackup, end: false },
   { to: '/settings', label: 'Settings', Icon: Settings, end: false },
   { to: '/audit', label: 'Audit log', Icon: History, end: false },
@@ -140,7 +145,9 @@ export function AppShell({ workspace }: { workspace: Workspace }) {
         </aside>
         <main id="main" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
           <BackupReminder workspace={workspace} />
-          <Outlet />
+          <Suspense fallback={<LoadingState label="Opening page…" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

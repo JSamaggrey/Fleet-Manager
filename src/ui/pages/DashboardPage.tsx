@@ -1,14 +1,20 @@
 import { Link } from 'react-router';
-import { formatMoney, sum } from '@/domain/money';
-import { currentYearMonth, formatYearMonth } from '@/domain/periods';
+import { formatMoney, isNegative, sum } from '@/domain/money';
+import { currentYearMonth, formatYearMonth, monthRange } from '@/domain/periods';
 import { isDateInRange, summarizeActivity } from '@/domain/transactions';
 import { backupStatus, type Workspace } from '@/domain/workspace';
-import { Alert } from '../components/Alert';
+
 import { FOCUS_RING } from '../components/Button';
 import { Card, DescriptionList, PageHeader } from '../components/Card';
 import { useStorageStatus } from '../device-status';
 import { formatDateTime, formatDaysAgo } from '../format';
-import { useAssets, useExpenseList, usePeriodReport, useRevenueList } from '../queries';
+import {
+  useAssets,
+  useExpenseList,
+  usePeriodReport,
+  useProfitReport,
+  useRevenueList,
+} from '../queries';
 import { useServices } from '../services';
 
 export function DashboardPage({ workspace }: { workspace: Workspace }) {
@@ -20,6 +26,7 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
   return (
     <>
       <PageHeader title="Dashboard" description="Overview of this device’s local workspace." />
+      <ProfitSummary workspace={workspace} />
       <AssetsSummary workspace={workspace} />
       <ActivitySummary workspace={workspace} />
       <div className="grid gap-6 md:grid-cols-2">
@@ -68,16 +75,43 @@ export function DashboardPage({ workspace }: { workspace: Workspace }) {
           </Link>
         </Card>
       </div>
-
-      <div className="mt-6">
-        <Alert tone="info" title="Reports">
-          <p>
-            Management profit and margin reports by asset and period are not built yet. Figures are
-            always for this device’s workspace only.
-          </p>
-        </Alert>
-      </div>
     </>
+  );
+}
+
+/** This month's fleet management profit, from the same calculation as the Reports page. */
+function ProfitSummary({ workspace }: { workspace: Workspace }) {
+  const { now } = useServices();
+  const period = currentYearMonth(now(), workspace.settings.timeZone);
+  const range = monthRange(period);
+  const report = useProfitReport(range);
+  if (!report.data) return null;
+  const { fleet } = report.data;
+  return (
+    <section aria-label="Management profit this month" className="mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-sm text-slate-600">
+            Fleet management profit, {formatYearMonth(period)} to date (full month’s depreciation)
+          </p>
+          <p
+            className={`mt-1 text-2xl font-semibold tabular-nums ${isNegative(fleet.profit) ? 'text-red-700' : 'text-slate-900'}`}
+          >
+            {formatMoney(fleet.profit)}
+          </p>
+          <p className="text-sm text-slate-600">
+            Margin {fleet.margin === null ? 'N/A (no revenue)' : `${fleet.margin}%`}. Management
+            figures, not statutory profit.
+          </p>
+        </div>
+        <Link
+          to={`/reports?kind=month&from=${range.from}&to=${range.to}`}
+          className={`inline-flex min-h-10 items-center rounded-md bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 ${FOCUS_RING}`}
+        >
+          Open report
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -111,16 +145,11 @@ function ActivitySummary({ workspace }: { workspace: Workspace }) {
           <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {all.unassignedCount} unassigned
           </p>
-          {all.unassignedCount > 0 && (
-            <p className="mt-1 flex gap-3 text-sm">
-              <Link to="/revenue?asset=unassigned" className={`underline ${FOCUS_RING}`}>
-                Revenue
-              </Link>
-              <Link to="/expenses?asset=unassigned" className={`underline ${FOCUS_RING}`}>
-                Expenses
-              </Link>
-            </p>
-          )}
+          <p className="mt-1 text-sm">
+            <Link to="/exceptions" className={`underline ${FOCUS_RING}`}>
+              View exceptions
+            </Link>
+          </p>
         </div>
       </div>
       <p className="mt-2 text-xs text-slate-600">

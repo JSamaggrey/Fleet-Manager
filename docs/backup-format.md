@@ -16,7 +16,7 @@ version 1 (Phase 1) and 2 (Phase 2) files are still accepted and upgraded in mem
   "format": "fms.workspace-backup", // identifies the file type
   "formatVersion": 1, // envelope version
   "schemaVersion": 3, // database schema version of the data section
-  "app": { "name": "fms", "version": "0.3.0" },
+  "app": { "name": "fms", "version": "0.4.0" },
   "exportedAt": "2026-03-10T09:00:00.000Z", // UTC
   "workspace": { "id": "<uuid>", "name": "…", "kind": "business" | "demo" },
   "counts": { "workspace": 1, "auditEvents": 12, "assetCategories": 6, "assets": 3, "…": 0 },

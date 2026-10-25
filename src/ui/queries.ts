@@ -9,6 +9,7 @@ import type { ExpenseCategoryInput, ExpenseInput } from '@/application/expense-s
 import type { RevenueInput } from '@/application/revenue-service';
 import type { WorkspaceUpdate } from '@/application/workspace-service';
 import type { AssetStatus } from '@/domain/assets';
+import type { CalendarRange } from '@/domain/periods';
 import type { ValidatedBackup } from '@/backup/backup-service';
 import type { PageRequest } from '@/repositories';
 import { useServices } from './services';
@@ -318,6 +319,41 @@ export function useUpdateExpenseCategory() {
     mutationFn: (input: { id: string } & ExpenseCategoryInput) =>
       expenses.updateExpenseCategory(input.id, input),
     onSuccess: invalidate,
+  });
+}
+
+// ---- Reports ----------------------------------------------------------------------------------
+
+export function useProfitReport(range: CalendarRange, enabled = true) {
+  const { reports } = useServices();
+  return useQuery({
+    queryKey: ['reports', 'profit', range.from, range.to],
+    queryFn: () => reports.profitReport(range),
+    enabled,
+  });
+}
+
+export function useExceptions() {
+  const { reports } = useServices();
+  return useQuery({ queryKey: ['reports', 'exceptions'], queryFn: () => reports.exceptions() });
+}
+
+export type CsvKind = 'profit' | 'revenue' | 'expenses';
+
+/** Builds a CSV report and hands it to the user. Nothing in the workspace changes. */
+export function useExportCsv() {
+  const { reports, saveFile } = useServices();
+  return useMutation({
+    mutationFn: async (input: { kind: CsvKind; range: CalendarRange }) => {
+      const file =
+        input.kind === 'profit'
+          ? await reports.profitCsv(input.range)
+          : input.kind === 'revenue'
+            ? await reports.revenueCsv(input.range)
+            : await reports.expenseCsv(input.range);
+      saveFile(file);
+      return file;
+    },
   });
 }
 

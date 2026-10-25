@@ -65,6 +65,23 @@ writes such as demo seeding. Inside `store.write()`, still await only repository
 - Lists are loaded whole and filtered in the UI. That is fine at pilot volumes (thousands of
   records); add indexed range queries (`serviceDate`, `expenseDate` are indexed) if it gets slow.
 
+### Reports
+
+- `domain/reports/profit.ts` (`buildProfitReport`) is pure: records + effective depreciation
+  lines + an inclusive date range in, asset and fleet results out. Formulas and assumptions shown
+  in the UI are constants from the same module (`PROFIT_FORMULAS`, `REPORT_ASSUMPTIONS`), so the
+  text and the maths cannot drift apart.
+- Period boundaries live in `domain/periods/date-range.ts` (week start from settings, business
+  time zone dates).
+- `application/report-service.ts` loads everything in one read and also builds exceptions and CSV
+  files (`domain/reports/csv.ts`). CSV is reporting output only, never a restore source.
+
+### Code splitting
+
+Pages other than the dashboard and onboarding load on first visit (`app/lazy-pages.ts`, with
+`Suspense` in `AppShell`). The service worker precaches every chunk, so this does not affect
+offline use. The offline Playwright tests open split pages with the network disabled.
+
 ### UI data flow
 
 TanStack Query wraps the application services with `networkMode: 'always'`, so local reads and

@@ -5,24 +5,31 @@ import type { Workspace } from '@/domain/workspace';
 import { PageHeader } from '@/ui/components/Card';
 import { ErrorState, LoadingState } from '@/ui/components/StateViews';
 import { AppShell } from '@/ui/layout/AppShell';
-import { AssetDetailPage } from '@/ui/pages/AssetDetailPage';
-import { EditAssetPage, NewAssetPage } from '@/ui/pages/AssetFormPage';
-import { AssetsPage } from '@/ui/pages/AssetsPage';
-import { AuditPage } from '@/ui/pages/AuditPage';
-import { BackupRestorePage } from '@/ui/pages/BackupRestorePage';
 import { DashboardPage } from '@/ui/pages/DashboardPage';
-import { DepreciationPage } from '@/ui/pages/DepreciationPage';
-import { ExpenseDetailPage } from '@/ui/pages/ExpenseDetailPage';
-import { EditExpensePage, NewExpensePage } from '@/ui/pages/ExpenseFormPage';
-import { ExpensesPage } from '@/ui/pages/ExpensesPage';
 import { OnboardingPage } from '@/ui/pages/OnboardingPage';
-import { RevenueDetailPage } from '@/ui/pages/RevenueDetailPage';
-import { EditRevenuePage, NewRevenuePage } from '@/ui/pages/RevenueFormPage';
-import { RevenuePage } from '@/ui/pages/RevenuePage';
-import { ReviseDepreciationPage } from '@/ui/pages/ReviseDepreciationPage';
-import { SettingsPage } from '@/ui/pages/SettingsPage';
 import { createQueryClient, useWorkspace } from '@/ui/queries';
 import { ServicesContext, type AppServices } from '@/ui/services';
+import {
+  AssetDetailPage,
+  AssetsPage,
+  AuditPage,
+  BackupRestorePage,
+  DepreciationPage,
+  EditAssetPage,
+  EditExpensePage,
+  EditRevenuePage,
+  ExceptionsPage,
+  ExpenseDetailPage,
+  ExpensesPage,
+  NewAssetPage,
+  NewExpensePage,
+  NewRevenuePage,
+  ReportsPage,
+  RevenueDetailPage,
+  RevenuePage,
+  ReviseDepreciationPage,
+  SettingsPage,
+} from './lazy-pages';
 
 function NotFound() {
   return (
@@ -54,6 +61,8 @@ function WorkspaceRoutes({ workspace }: { workspace: Workspace }) {
         <Route path="expenses/new" element={<NewExpensePage workspace={workspace} />} />
         <Route path="expenses/:id" element={<ExpenseDetailPage workspace={workspace} />} />
         <Route path="expenses/:id/edit" element={<EditExpensePage workspace={workspace} />} />
+        <Route path="reports" element={<ReportsPage workspace={workspace} />} />
+        <Route path="exceptions" element={<ExceptionsPage />} />
         <Route path="backup" element={<BackupRestorePage workspace={workspace} />} />
         <Route path="settings" element={<SettingsPage workspace={workspace} />} />
         <Route path="audit" element={<AuditPage workspace={workspace} />} />

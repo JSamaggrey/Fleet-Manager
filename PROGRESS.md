@@ -10,13 +10,13 @@ gotchas** that aren't obvious from the code. Keep it current at the end of each 
 | 0 Scaffold, architecture decision, money domain                            | Done     | `54cf965`                       |
 | 1 Offline PWA shell, local workspace, settings, audit, full backup/restore | Done     | `1bdc92c`                       |
 | 2 Assets, categories, depreciation schedules, revisions, period close      | Done     | `e0203be`                       |
-| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done     | see `git log --grep "Phase 3:"` |
-| 4 Reports, dashboard, period filters, CSV export, exceptions               | **Next** | —                               |
-| 5 Tasks, accessibility/tablet QA, release docs                             | Pending  | —                               |
+| 3 Trip revenue, direct/shared expenses, void/reversal, audit               | Done     | `91179ee`                       |
+| 4 Reports, dashboard, period filters, CSV export, exceptions               | Done     | see `git log --grep "Phase 4:"` |
+| 5 Tasks, accessibility/tablet QA, release docs                             | **Next** | —                               |
 
-Last verified (Phase 3, app v0.3.0): `pnpm check` green (233 unit/component tests).
-`pnpm test:e2e` 18/18 on desktop-chromium and tablet-webkit (adds offline revenue/expense/void
-and a demo backup round trip with revenue, expenses and voids).
+Last verified (Phase 4, app v0.4.0): `pnpm check` green (267 unit/component tests).
+`pnpm test:e2e` 20/20 on desktop-chromium and tablet-webkit (adds offline reports, drill-through
+and CSV download). Main JS chunk is 491 KB (157 KB gzipped) after route splitting.
 
 ## Environment (Windows)
 
@@ -38,6 +38,11 @@ and a demo backup round trip with revenue, expenses and voids).
 - ESLint `react-refresh/only-export-components`: keep hooks/functions out of `.tsx` component
   files (put them in a `.ts` next to them, e.g. `ui/transactions/list-helpers.ts`).
 - Playwright: `getByLabel('Status')` also matches the header "Device status"; use `exact: true`.
+- Testing Library `asyncUtilTimeout` is 5 s (`src/test/setup.ts`). Pages are lazy-loaded and run
+  several queries, so always `findBy…` the first element of a newly opened page, and wait for
+  data-dependent content, not just the heading.
+- New pages: add them to `src/app/lazy-pages.ts` (named export → `lazy`), not as direct imports in
+  `App.tsx`.
 - To debug a real-browser-only failure: `vite build`, `vite preview --port 4173`, then a scratchpad
   Playwright script importing `file:///…/node_modules/@playwright/test/index.mjs`. Kill the preview
   node process afterwards.
@@ -48,23 +53,29 @@ and a demo backup round trip with revenue, expenses and voids).
 src/domain/        pure rules + strict Zod schemas: money, periods (YearMonth), workspace, audit,
                    assets (+categories), depreciation (engine, revisions), transactions (revenue,
                    expenses, expense categories, void, expenseBucket, summarizeActivity,
-                   isDateInRange). No React/Dexie/browser APIs.
+                   isDateInRange), periods/date-range (week/month/quarter/year ranges,
+                   monthsInRange), reports (buildProfitReport, depreciationInRange, formula and
+                   assumption texts, CSV). money has prorate and percentOf. No React/Dexie/browser APIs.
 src/repositories/  interfaces: WorkspaceStore, Repositories, WorkspaceTables, TABLE_NAMES, emptyTables
 src/application/   workspace-service, asset-service, depreciation-service, asset-records (shared
                    helpers: validation, audit views, insertAssetWithSchedule), revenue-service,
                    expense-service (+expense categories), transaction-records (AssetRef,
                    parseOrThrow, voidInfo, rejectFutureDate), errors (ValidationError, NotFoundError),
-                   demo-seed (assets + activity)
+                   demo-seed (assets + activity), report-service (profitReport, exceptions,
+                   profit/revenue/expense CSV)
 src/persistence/   dexie/ (FmsDatabase v3 + migrations, DexieWorkspaceStore), memory/,
                    workspace-store.contract.ts (shared adapter suite), dexie/migrations.test.ts
 src/backup/        format.ts (envelope; V1, V2 frozen + current V3; BACKUP_DATA_SCHEMAS),
                    backup-service.ts (upgradeToCurrent chains 1→2→3)
 src/ui/            components/ (DataTable, list-features), layout/, pages/, assets/,
                    transactions/ (form-values, VoidAction, HistoryCard, ExpenseCategoriesCard,
-                   list-controls, list-helpers), backup/, queries.ts, services.ts
-src/app/           App.tsx (routes), create-services.ts (composition root), pwa.ts
+                   list-controls, list-helpers), reports/ (PeriodPicker, report-period: period in
+                   URL ?kind=&from=&to=), backup/ (download.ts SavedFile for JSON + CSV),
+                   queries.ts, services.ts
+src/app/           App.tsx (routes), lazy-pages.ts (code-split pages), create-services.ts
+                   (composition root), pwa.ts
 src/test/          fixtures.ts (ids, clock, sample workspace/audit/category/asset/schedule)
-e2e/               smoke, offline, backup-restore, assets, transactions specs + helpers
+e2e/               smoke, offline, backup-restore, assets, transactions, reports specs + helpers
 ```
 
 ## Decisions in force
@@ -101,7 +112,19 @@ e2e/               smoke, offline, backup-restore, assets, transactions specs + 
     period lock yet.
 - **Backups**: data schemaVersion 3. v1 and v2 files are upgraded in memory on import.
   Cross-table integrity checks are listed in `docs/backup-format.md`.
-- Defaults for open questions: `docs/product-defaults.md` (rows 3a–3e were added in Phase 3).
+- **Reports**:
+  - Periods are inclusive calendar dates in the business time zone. The week start comes from
+    settings.
+  - Depreciation in a period is pro-rated by days for partial months (row 4g). Periods still in
+    progress show a "not ended" notice (4h).
+  - Fleet profit deducts unassigned operating expenses (9a). The report shows the reconciliation
+    Σ asset profit + unassigned revenue − shared − unassigned expenses = fleet profit.
+  - Margin is a one-decimal percentage via `percentOf`, or N/A when revenue ≤ 0.
+  - Exceptions are all-dates and data-backed only. Revisions are confirmed on save, so there is
+    no "awaiting confirmation" queue.
+  - CSV is profit/revenue/expense only (row 10a) and is never restorable.
+- Defaults for open questions: `docs/product-defaults.md` (rows 3a–3e were added in Phase 3;
+  4g, 4h, 9a and 10a in Phase 4).
 
 ## Checklist: adding a new persisted entity
 
@@ -120,36 +143,45 @@ e2e/               smoke, offline, backup-restore, assets, transactions specs + 
    every older version (`phase1Backup`/`phase2Backup` helpers in `backup-versions.test.ts`).
 7. Service writes and audit happen in one `store.write()`. Add a Playwright test for any multi-step
    write; fake-indexeddb won't catch transaction problems.
-8. UI: hooks in `ui/queries.ts`, page, nav item in `AppShell.tsx`, route in `App.tsx`.
+8. UI: hooks in `ui/queries.ts`, page in `app/lazy-pages.ts`, nav item in `AppShell.tsx`, route
+   in `App.tsx`.
 
-## Phase 4 scope (AGENT.md §9–10, §15)
+## Phase 5 scope (AGENT.md §11–12, §14–15)
 
-- Period selector: week (Monday start, `settings.weekStartsOn`), month, quarter, year, custom.
-  Inclusive dates in the business time zone. Add pure period-boundary functions and tests to
-  `domain/periods`.
-- Per-asset report: revenue − direct operating expenses − depreciation (from `effectiveLines` /
-  the governing schedule for each month) = management profit. Margin only when revenue > 0,
-  otherwise N/A.
-- Fleet report: fleet revenue (including unassigned) − direct − shared − unassigned operating
-  expenses − depreciation. Show it clearly apart from the sum of asset profits, with the shared
-  line separate. Capital items are listed and never deducted.
-- Depreciation is monthly, so a week or a partial month needs a stated rule (e.g. whole months
-  only, or pro-rata). **Ask the user, or default to month-granular depreciation and disclose it.**
-- Drill-through from the report to the records. Exception view: unassigned revenue/expenses,
-  assets without activity, and so on, using only collected data. CSV export (use
-  `toDecimalString`; never restorable).
-- Every report shows the date range, currency, formula, basis and assumptions. Label it
-  "management profit/contribution", not net profit.
-- Recharts (or equivalent) only if it adds value. Watch the bundle size (~800 KB now); consider
-  route-level `lazy()` splitting.
+- Tasks (§11), from captured data only:
+  - The exceptions in `report-service.exceptions()` are the natural source: unassigned items,
+    incomplete setup, fully depreciated active assets, unclosed months.
+  - Task fields are title, source record, due date, status, priority and history. Decide whether
+    tasks are derived (computed, nothing stored) or stored with status. Stored needs a schema v4,
+    using the checklist above.
+  - No registration/insurance/inspection reminders unless those dates are added to assets. No
+    maintenance tasks.
+  - **Product question 5 (task categories) is still open. Ask before building stored tasks.**
+- Accessibility pass:
+  - keyboard-only walkthrough of every page and focus after navigation;
+  - colour contrast;
+  - consider `@axe-core/playwright` checks in e2e.
+- Tablet QA on a real iPad, plus the ADR 0001 proof table on a real Windows PC.
+- Release docs:
+  - install/hosting guide (once the hosting decision is made);
+  - release checklist;
+  - user guide for backup cadence;
+  - a final backup/restore validation run.
+- Optional: charts (load the dataviz skill first) only if they add value.
+
+The remaining items from AGENT.md §15 are all covered by tests now; re-verify them at release.
 
 ## Open items / known limitations
 
 - How devices receive the app (fixed HTTPS hosting vs local install) is undecided.
 - Not yet verified on a real iPad or Windows device (ADR 0001 proof table).
 - Backups are unencrypted. The checksum catches corruption, not authorship.
-- JS bundle ~700 KB in one chunk. Consider route-level code splitting.
-- Revenue/expenses have no period lock. Corrections to old months are audited but allowed.
+- Main JS chunk is 491 KB (157 KB gzipped), mostly React, Zod, TanStack and Dexie. Acceptable for
+  now.
+- Revenue/expenses have no period lock. Corrections to old months are audited but allowed, so a
+  report for a past period can change.
+- No charts yet (tables and statements only).
 - **Awaiting product confirmation:** recognition basis (3), corrections and voids (3a), capital
   items (3d), full first month (4a), period-close model (4d), disposal policy (4c, which blocks
-  retire/dispose), task categories (5).
+  retire/dispose), report depreciation pro-rata (4g), unassigned expenses in fleet profit (9a),
+  task categories (5).

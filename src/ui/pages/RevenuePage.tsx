@@ -108,8 +108,8 @@ export function RevenuePage() {
   const [params] = useSearchParams();
   const [assetFilter, setAssetFilter] = useState(params.get('asset') ?? '');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState(params.get('from') ?? '');
+  const [to, setTo] = useState(params.get('to') ?? '');
   const [search, setSearch] = useState('');
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
