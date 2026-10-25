@@ -24,7 +24,22 @@ backup ──▶ repositories + domain (validation)
 | `src/ui/`           | Components, pages, forms                                                                                                                      | application, domain (types/formatting) |
 | `src/app/`          | Shell, routing, composition root                                                                                                              | everything                             |
 
-Folders are created when they are first used. Phase 0 contains `domain/money` and `app`.
+Folders are created when first used. All layers exist as of Phase 1.
+
+### Adapters and the repository contract
+
+- `persistence/dexie`: the production IndexedDB adapter.
+- `persistence/memory`: an in-memory reference adapter used by UI and service tests.
+- Both run the same contract suite (`persistence/workspace-store.contract.ts`). It covers atomic
+  writes, rollback, atomic restore-into-empty-only, erase, and copy semantics. A future SQLite or
+  API adapter must pass it too.
+
+### UI data flow
+
+TanStack Query wraps the application services with `networkMode: 'always'`, so local reads and
+writes never pause when the device is offline. Services are injected through `ServicesContext`
+from `app/create-services.ts`, which is the only place that picks a storage adapter. Routing uses
+hash URLs so any static host works without rewrite rules.
 
 ## Identity and versioning
 

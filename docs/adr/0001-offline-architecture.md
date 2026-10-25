@@ -65,6 +65,17 @@ adapter (or an API/PostgreSQL backend) can be added later without rewriting busi
 - Writes that touch multiple tables are atomic (failure leaves no partial records), proven by tests.
 - Full backup export → restore into an empty workspace reproduces identical records and IDs.
 
+### Status of proof criteria (Phase 1)
+
+| Criterion                                                  | Result                                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------------- |
+| Offline start and core workflow, Chromium (desktop)        | Passing: `e2e/offline.spec.ts`                             |
+| Offline start and core workflow, WebKit (iPad emulation)   | Passing: `e2e/offline.spec.ts`                             |
+| Real iPad and real Windows device                          | **Not yet verified.** Manual check required.               |
+| Workspace survives reload; `persist()` outcome shown in UI | Passing (reload in e2e; storage status on Backup page)     |
+| Multi-table writes are atomic                              | Passing: contract tests (Dexie and memory)                 |
+| Backup → restore reproduces identical records and IDs      | Passing: unit tests (both adapters) and e2e (both engines) |
+
 ## Revisit triggers
 
 - Users lose data to eviction despite mitigations, or need OS-level file control.

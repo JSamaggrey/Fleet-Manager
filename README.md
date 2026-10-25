@@ -3,11 +3,12 @@
 Management reporting for transport vehicles and other business assets. It runs on each device
 independently with no internet, LAN, or server after installation. Reporting currency is GHS.
 
-> **Status: Phase 0 (scaffold).** No business features yet. See `AGENT.md` for the product
-> specification and `docs/` for decisions.
+> **Status: Phase 1 (offline foundation).** Installable offline app, local workspace, settings,
+> audit log, and full backup/restore. Assets, depreciation, revenue, expenses and reports are not
+> built yet. See `AGENT.md` for the specification and `docs/` for decisions.
 
 **Each device has its own workspace. Nothing syncs between devices.** Moving data between devices
-will use an explicit full backup export and restore (Phase 1).
+uses an explicit full backup and restore. See [Backing up and restoring](docs/backup-and-restore.md).
 
 ## Requirements
 
@@ -21,6 +22,17 @@ pnpm install
 pnpm exec playwright install chromium webkit   # browsers for end-to-end tests
 pnpm dev                                       # http://localhost:5173
 ```
+
+## Use offline
+
+1. Serve the production build. Use `pnpm build`, then host `dist/` at a fixed HTTPS address, or
+   run `pnpm preview` for local testing at `http://localhost:4173`.
+2. Open it once while the server is reachable. The header shows **Available offline** once the app
+   is cached.
+3. Optionally install it: the install icon in the Chrome/Edge address bar, or Share → Add to Home
+   Screen on iPad.
+4. From then on it starts and works with no network. App updates are offered through a reload
+   button and are never applied mid-task.
 
 ## Scripts
 
@@ -41,10 +53,12 @@ pnpm dev                                       # http://localhost:5173
 - [ADR 0001 — Offline architecture (PWA + IndexedDB)](docs/adr/0001-offline-architecture.md)
 - [ADR 0002 — Money representation and rounding](docs/adr/0002-money-representation.md)
 - [Product defaults for open questions](docs/product-defaults.md)
+- [Backing up, restoring, and moving a workspace](docs/backup-and-restore.md)
+- [Backup file format](docs/backup-format.md)
 
 ## Data safety
 
-- Browser storage can be cleared or evicted. Once backup exists (Phase 1), export backups often and
-  keep them somewhere safe.
+- Browser storage can be cleared or evicted. Download full backups often and keep them somewhere
+  safe.
 - Backup files contain sensitive business information. Never commit them; `.gitignore` excludes
   `*.fmsbackup.json`, `backups/` and `exports/`.
